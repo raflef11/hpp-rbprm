@@ -104,12 +104,12 @@ namespace hpp {
                 }*/
                 ss << "\n";
             }
-            ss << " com ";
+            ss << "com ";
             for(std::size_t i=0; i<3; ++i)
             {
                 ss << " " << com_[i];
             }
-            ss << "\n configuration";
+            ss << "\n" << "configuration ";
             for(int i=0; i<configuration_.rows(); ++i)
             {
                 ss << " " << configuration_[i];
@@ -121,12 +121,13 @@ namespace hpp {
         void print(std::stringstream& ss) const
         {
             ss << nbContacts << "\n";
-            ss << "new Contacts ";
+            ss << "";
             std::map<std::string, fcl::Vec3f>::const_iterator cit = contactNormals_.begin();
             for(unsigned int c=0; c < nbContacts; ++c, ++cit)
             {
                 ss << " " << cit->first << " ";
             }
+            ss << "\n";
             printInternal(ss);
         }
 
@@ -134,7 +135,7 @@ namespace hpp {
         {
             ss << nbContacts << "\n";
             std::vector<std::string> ncontacts;
-            ss << "new Contacts ";
+            ss << "";
             for(std::map<std::string, fcl::Vec3f>::const_iterator cit = contactPositions_.begin();
                 cit != contactPositions_.end(); ++cit)
             {

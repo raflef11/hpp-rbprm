@@ -49,7 +49,7 @@ Eigen::MatrixXd Jacobian(const model::JointPtr_t limb, const model::JointPtr_t e
 
 double Manipulability(const Eigen::MatrixXd& product)
 {
-    double det = product.determinant();
+    double det = product.determinant() * 1000000;
     return det > 0 ? sqrt(det) : 0;
 }
 

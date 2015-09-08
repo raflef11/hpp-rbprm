@@ -63,6 +63,7 @@ SET(${PROJECT_NAME}_HEADERS
 		include/hpp/rbprm/stability/stability.hh
 		include/hpp/rbprm/stability/support.hh
     include/hpp/rbprm/tools.hh
+    include/hpp/rbprm/stop-watch.hh
   )
 
 ADD_SUBDIRECTORY(src)

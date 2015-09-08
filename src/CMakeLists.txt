@@ -33,6 +33,7 @@ SET(${LIBRARY_NAME}_SOURCES
         tools.cc ${PROJECT_SOURCE_DIR}/include/hpp/rbprm/tools.hh
 	stability/stability.cc ${PROJECT_SOURCE_DIR}/include/hpp/rbprm/stability/stability.hh
 	stability/support.cc ${PROJECT_SOURCE_DIR}/include/hpp/rbprm/stability/support.hh
+        stop-watch.cpp ${PROJECT_SOURCE_DIR}/include/hpp/rbprm/stop-watch.hh
   )
 
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src)

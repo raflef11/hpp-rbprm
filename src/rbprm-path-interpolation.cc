@@ -38,12 +38,14 @@ namespace hpp {
     std::vector<State> RbPrmInterpolation::Interpolate(const model::ObjectVector_t &collisionObjects, const double timeStep)
     {
         int nbFailures = 0;
-        std::cout << "interpolation " << std::endl;
+        //std::cout << "interpolation " << std::endl;
         std::vector<State> states;
         states.push_back(this->start_);
         const core::interval_t& range = path_->timeRange();
         std::size_t nbRecontacts = 0;
         bool allowFailure = true;
+timer::timing& timer = timer::GetTiming();
+timer.tim.start("global");
         for(double i = range.first + timeStep; i< range.second; i+= timeStep)
         {
             const State& previous = states.back();
@@ -56,7 +58,7 @@ namespace hpp {
             if(!nonZero) direction = fcl::Vec3f(0,0,1.);
 
 {
-    direction = fcl::Vec3f(0.1,0,1);
+    //direction = fcl::Vec3f(1,0,0);
 }
             configuration.head(configPosition.rows()) = configPosition;
             // TODO Direction 6d
@@ -66,10 +68,11 @@ namespace hpp {
             if(allowFailure && multipleBreaks)
             {
                 ++ nbFailures;
-                std::cout << "failed at state " << states.size() +1 << std::endl;
+                //std::cout << "failed at state " << states.size() +1 << std::endl;
             }
             if(multipleBreaks && !allowFailure)
             {
+                //std::cout << "breaks multiple at state " << states.size()  << std::endl;
                 ++nbRecontacts;
                 i -= timeStep;
             }
@@ -84,8 +87,9 @@ namespace hpp {
             states.push_back(newState);
             allowFailure = nbRecontacts > robot_->GetLimbs().size();
         }
+timer.Stat();
         states.push_back(this->end_);
-        std::cout << "nbfailure " << nbFailures <<std::endl;
+        //std::cout << "nbfailure " << nbFailures <<std::endl;
         return states;
     }
 

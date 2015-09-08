@@ -96,6 +96,11 @@ namespace hpp {
                                                 const hpp::model::CollisionObjectPtr_t& o2,
                                                 const fcl::Vec3f& direction, T_OctreeReport& report);
 
+        friend bool GetCandidates(const SampleContainer& sc, const fcl::Transform3f& treeTrf,
+                                                const hpp::model::CollisionObjectPtr_t& o2,
+                                                const fcl::Vec3f& direction, T_OctreeReport& report,
+                                                const model::ConfigurationIn_t ref);
+
     }; // class SampleContainer
 
     /// Sorted by manipulability
@@ -106,6 +111,11 @@ namespace hpp {
     bool GetCandidates(const SampleContainer& sc, const fcl::Transform3f& treeTrf,
                                             const hpp::model::CollisionObjectPtr_t& o2,
                                             const fcl::Vec3f& direction, T_OctreeReport& report);
+
+    bool GetCandidates(const SampleContainer& sc, const fcl::Transform3f& treeTrf,
+                                            const hpp::model::CollisionObjectPtr_t& o2,
+                                            const fcl::Vec3f& direction, T_OctreeReport& report,
+                                            const model::ConfigurationIn_t ref);
   } // namespace sampling
 } // namespace rbprm
 } // namespace hpp
