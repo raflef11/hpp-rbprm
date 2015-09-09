@@ -150,7 +150,6 @@ bool rbprm::sampling::GetCandidates(const SampleContainer& sc, const fcl::Transf
     sampling::SampleContainer::T_VoxelSample::const_iterator voxelIt;
     //const fcl::Vec3f rotatedDir = treeTrf.getRotation() * direction;
     Eigen::Vector3d eDir(direction[0], direction[1], direction[2]);
-    double rank = 0;
     //Eigen::Vector3d eRotDir(rotatedDir[0], rotatedDir[1], rotatedDir[2]);
     for(std::size_t index=0; index<cResult.numContacts(); ++index)
     {
@@ -191,10 +190,10 @@ bool rbprm::sampling::GetCandidates(const SampleContainer& sc, const fcl::Transf
             const fcl::Vec3f& v3 = surface->vertices[tr[2]];
             normal = (v2 - v1).cross(v3 - v1);
             normal.normalize();
-            double EFORT =  -eDir.transpose() * (*sit)->jacobianProduct_.block<3,3>(0,0) * (-eDir);
+            double EFORT = 0; //  -eDir.transpose() * (*sit)->jacobianProduct_.block<3,3>(0,0) * (-eDir);
             //EFORT = (direction.dot(normal));
-            EFORT += ((*sit)->manipulability_ /*+ (direction.dot(normal))*/);
-EFORT = rank++;
+            EFORT += ((*sit)->manipulability_ + 1 * (direction.dot(normal)));
+//EFORT = rand();
             OctreeReport report(*sit, contact,EFORT, normal);
             reports.insert(report);
         }

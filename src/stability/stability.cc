@@ -68,7 +68,7 @@ namespace stability{
                 }
                 positions(i+3*c) = transform.getTranslation()[i];
             }
-            frictions(c) = 0.37; // TODO parametrize
+            frictions(c) = 0.4; // TODO parametrize
             xs(c) = limb->x_;
             ys(c) = limb->y_;
         }
@@ -76,11 +76,11 @@ namespace stability{
         return polytope::U_stance(rotations,positions,frictions,xs,ys);
     }
 
-    bool IsStablePoly(const RbPrmFullBodyPtr_t fullbody, State& state, bool print)
+    bool IsStable(const RbPrmFullBodyPtr_t fullbody, State& state, bool print)
     {
 
-timer::timing& timer = timer::GetTiming();
-timer.tim.start("local");
+/*timer::timing& timer = timer::GetTiming();
+timer.tim.start("local");*/
         if(!init)
         {
             polytope::init_library();
@@ -119,7 +119,7 @@ timer.tim.start("local");
                 }
                 positions(i+3*c) = transform.getTranslation()[i];
             }
-            frictions(c) = 0.29; // TODO parametrize
+            frictions(c) = 0.5; // TODO parametrize
             xs(c) = limb->x_;
             ys(c) = limb->y_;
         }
@@ -134,38 +134,37 @@ timer.tim.start("local");
         std::cout << "com  \n" << fullbody->device_->positionCenterOfMass() << std::endl;*/
 
 
-        const polytope::ProjectedCone* cone = polytope::U_stance(rotations,positions,frictions,xs,ys, true, 3.);
+        const polytope::ProjectedCone* cone = polytope::U_stance(rotations,positions,frictions,xs,ys, true, 2);
         if(cone)
         {
             polytope::vector3_t com;
             const fcl::Vec3f comfcl = fullbody->device_->positionCenterOfMass();
             state.com_ = comfcl;
             for(int i=0; i< 3; ++i) com(i)=comfcl[i];
-            bool res = cone->IsValid(com,gravity,fullbody->device_->mass(),true)
-                    /*&& !cone->IsValid(com,gravity,fullbody->device_->mass(),true)*/ && cone->A.rows() >1;
-            if(print)
+            bool res = cone->A.rows() >1 && cone->IsValid(com,gravity,fullbody->device_->mass(),false);
+            if(res && print)
             {
-                //std::cout << " not robust " << cone->IsValid(com,gravity,fullbody->device_->mass(),false) << std::endl;
-                //std::cout << " robust " << cone->IsValid(com,gravity,fullbody->device_->mass(),true) << std::endl;
+                std::cout << " robust " << cone->IsValid(com,gravity,fullbody->device_->mass(),true) << std::endl;
+                std::cout << " not robust " << cone->IsValid(com,gravity,fullbody->device_->mass(),false) << std::endl;
             }
             delete cone;
             fullbody->device_->currentConfiguration(save);     
-timer.tim.stop("local");
+/*timer.tim.stop("local");
 timer.timePerCall.push_back(timer.tim.get_total_time("local"));
-timer.tim.reset("local");
+timer.tim.reset("local");*/
             return res;
         }
         fullbody->device_->currentConfiguration(save);
-timer.tim.stop("local");
+/*timer.tim.stop("local");
 timer.timePerCall.push_back(timer.tim.get_total_time("local"));
-timer.tim.reset("local");
+timer.tim.reset("local");*/
         return false;
     }
 
-    bool IsStable(const RbPrmFullBodyPtr_t fullbody, State& state, bool /*print*/)
+    bool IsStablePoly(const RbPrmFullBodyPtr_t fullbody, State& state, bool /*print*/)
     {
-timer::timing& timer = timer::GetTiming();
-timer.tim.start("local");
+/*timer::timing& timer = timer::GetTiming();
+timer.tim.start("local");*/
         std::vector<std::string> contacts;
         for(std::map<std::string,bool>::const_iterator cit = state.contacts_.begin();
             cit!=state.contacts_.end(); ++ cit)
@@ -209,9 +208,9 @@ rotations.block<3,3>(3*c,0) = Eigen::Matrix3d::Identity();
         bool res = Contains(positions,com,xs,ys);
 
 
-timer.tim.stop("local");
+/*timer.tim.stop("local");
 timer.timePerCall.push_back(timer.tim.get_total_time("local"));
-timer.tim.reset("local");
+timer.tim.reset("local");*/
         return res;
     }
 }

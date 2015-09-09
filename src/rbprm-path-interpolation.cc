@@ -44,8 +44,8 @@ namespace hpp {
         const core::interval_t& range = path_->timeRange();
         std::size_t nbRecontacts = 0;
         bool allowFailure = true;
-timer::timing& timer = timer::GetTiming();
-timer.tim.start("global");
+/*timer::timing& timer = timer::GetTiming();
+timer.tim.start("global");*/
         for(double i = range.first + timeStep; i< range.second; i+= timeStep)
         {
             const State& previous = states.back();
@@ -87,7 +87,7 @@ timer.tim.start("global");
             states.push_back(newState);
             allowFailure = nbRecontacts > robot_->GetLimbs().size();
         }
-timer.Stat();
+//timer.Stat();
         states.push_back(this->end_);
         //std::cout << "nbfailure " << nbFailures <<std::endl;
         return states;
