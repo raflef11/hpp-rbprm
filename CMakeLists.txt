@@ -79,6 +79,8 @@ SET(${PROJECT_NAME}_HEADERS
     include/hpp/rbprm/rbprm-profiler.hh
     include/utils/Stdafx.hh
     include/utils/stop-watch.hh
+    include/hpp/rbprm/planner/dynamic-planner.hh
+    include/hpp/rbprm/planner/steering-dynamic.hh
   )
 
 # Activate hpp-util logging if requested
