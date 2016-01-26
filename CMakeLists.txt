@@ -81,6 +81,8 @@ SET(${PROJECT_NAME}_HEADERS
     include/utils/stop-watch.hh
     include/hpp/rbprm/planner/dynamic-planner.hh
     include/hpp/rbprm/planner/steering-dynamic.hh
+    include/hpp/rbprm/planner/parabola-path.hh
+    include/hpp/rbprm/planner/steering-method-parabola.hh
   )
 
 # Activate hpp-util logging if requested
