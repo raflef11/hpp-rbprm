@@ -14,6 +14,7 @@
 // received a copy of the GNU Lesser General Public License along with
 // hpp-rbprm. If not, see <http://www.gnu.org/licenses/>.
 
+#include <hpp/core/collision-validation-report.hh>
 #include <hpp/rbprm/rbprm-shooter.hh>
 #include <hpp/model/collision-object.hh>
 #include <hpp/model/joint.hh>
@@ -299,8 +300,8 @@ hpp::core::ConfigurationPtr_t RbPrmShooter::shoot () const
         SampleRotation(eulerSo3_, config, jv);
         // rotate and translate randomly until valid configuration found or
         // no obstacle is reachable
-        CollisionValidationReport report;
-        CollisionValidationReport unusedreport;
+        ValidationReportPtr_t report;
+        ValidationReportPtr_t unusedreport;
         std::size_t limitDis = displacementLimit_;
         Vec3f lastDirection(1,0,0);
         while(!found && limitDis >0)
@@ -310,7 +311,7 @@ hpp::core::ConfigurationPtr_t RbPrmShooter::shoot () const
             {
                 found = true;
             }
-            else if(!report.result.isCollision())
+            else if(!boost::dynamic_pointer_cast<CollisionValidationReport>(report)->result.isCollision())
             {
                 // try to rotate to reach rom
                 for(; limitDis>0 && !found; --limitDis)
@@ -333,13 +334,12 @@ hpp::core::ConfigurationPtr_t RbPrmShooter::shoot () const
                 // mouve out by penetration depth
                 // v0 move away from normal
                 //get normal from collision tri
-                lastDirection = triangles_[report.result.getContact(0).b2].first;
+                lastDirection = triangles_[boost::dynamic_pointer_cast<CollisionValidationReport>(report)->result.getContact(0).b2].first;
                 Translate(robot_,config, -lastDirection *
-                          (std::abs(report.result.getContact(0).penetration_depth) +0.03));
+                          (std::abs(boost::dynamic_pointer_cast<CollisionValidationReport>(report)->result.getContact(0).penetration_depth) +0.03));
                  limitDis--;
             }
         }
-
         // Shoot extra configuration variables
         size_type extraDim = robot_->extraConfigSpace ().dimension ();
         size_type offset = robot_->configSize () - extraDim;
@@ -358,7 +358,6 @@ hpp::core::ConfigurationPtr_t RbPrmShooter::shoot () const
             }
             (*config) [offset + i] = (upper - lower) * rand ()/RAND_MAX;
         }
-
         // save the normal (code from Mylène)
         if(extraDim >= 3 ){
           size_type index = robot_->configSize() -3;  // rempli toujours les 3 derniers

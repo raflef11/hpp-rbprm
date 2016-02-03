@@ -60,7 +60,7 @@ BOOST_AUTO_TEST_CASE (shooterCreationWithFilters) {
     collisionObjects.push_back(colObject);
 
     std::vector<std::string> filter;
-    hpp::core::CollisionValidationReport validationReport;
+    hpp::core::ValidationReportPtr_t validationReport;
 
     RbPrmShooterPtr_t shooter = RbPrmShooter::create(robot, collisionObjects, filter);
     for(int i =0; i< 100; ++i)
