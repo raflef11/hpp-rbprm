@@ -79,6 +79,9 @@ namespace hpp {
                       const std::vector<std::string>& filter,
                       bool throwIfInValid)
     {
+      /*  hppDout(notice, "Filters = ");
+        for(std::vector<std::string>::const_iterator it = filter.begin() ; it != filter.end() ; ++it)
+          hppDout(notice,"filter : "<<*it);*/
         unsigned int filterMatch(0);
         for(T_RomValidation::const_iterator cit = romValidations_.begin();
             cit != romValidations_.end() && (filterMatch < 1 || filterMatch < filter.size()); ++cit)
