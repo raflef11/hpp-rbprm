@@ -51,20 +51,14 @@ namespace hpp {
       /// \param config the config to check for validity,
       /// \param throwIfInValid if true throw an exception if config is invalid.
       /// \return whether the whole config is valid.
-      virtual bool validate (const core::Configuration_t& config,
-                 bool throwIfInValid = false);
+     // virtual bool validate (const core::Configuration_t& config);
 
       /// Compute whether the configuration is valid
       ///
       /// \param config the config to check for validity,
       /// \retval validationReport report on validation (used only for rom shape). This parameter will
       ///         dynamically cast into CollisionValidationReport type,
-      /// \param throwIfInValid if true throw an exception if config is invalid,
       /// \return whether the whole config is valid.
-      virtual bool validate (const core::Configuration_t& config,
-                 core::ValidationReport& validationReport,
-                 bool throwIfInValid = false);
-
       virtual bool validate (const core::Configuration_t& config,
                  core::ValidationReportPtr_t& validationReport);
 
@@ -79,8 +73,35 @@ namespace hpp {
       /// \return whether the whole config is valid.
       virtual bool validate (const core::Configuration_t& config,
                  core::ValidationReportPtr_t &validationReport,
-                 const std::vector<std::string>& filter,
-                 bool throwIfInValid = false);
+                 const std::vector<std::string>& filter);
+
+
+      // needed (pure virtual in base class)
+      /// Compute whether the configuration is valid
+      ///
+      /// \param config the config to check for validity,
+      /// \param throwIfInValid if true throw an exception if config is invalid.
+      /// \return whether the whole config is valid.
+      /// \deprecated Use the method that takes as input a reference to a shared
+      ///             pointer to a validation report instead
+      virtual bool validate (const core::Configuration_t& config,
+           bool throwIfInValid = false) HPP_CORE_DEPRECATED;
+
+      // needed (pure virtual in base class)
+      /// Compute whether the configuration is valid
+      ///
+      /// \param config the config to check for validity,
+      /// \retval validationReport report on validation. This object may be
+      ///         specialized by derived implementation to report specific
+      ///         information.
+      /// \param throwIfInValid if true throw an exception if config is invalid.
+      /// \return whether the whole config is valid.
+      /// \deprecated Use method that take as input a reference to a shared
+      ///             pointer to a validation report instead
+      virtual bool validate (const core::Configuration_t& config,
+           core::ValidationReport& validationReport,
+           bool throwIfInValid = false) HPP_CORE_DEPRECATED;
+
 
       /// Add an obstacle
       /// \param object obstacle added
@@ -101,18 +122,34 @@ namespace hpp {
       /// \param config the config to check for validity,
       /// \param filter specify constraints on all roms required to be in contact, will return
       /// false if all specified roms are not colliding
+      /// \param validationReport the report (can be cast to rbprmValidationReport) with info on the trunk and ROM states,
       /// \param throwIfInValid if true throw an exception if config is invalid,
       /// \return whether the whole config is valid.
       bool validateRoms(const core::Configuration_t& config,
                         const std::vector<std::string>& filter,
-                        bool throwIfInValid = false);
+                         core::ValidationReportPtr_t &validationReport, bool throwIfInValid = false);
+
+      /// Compute whether the roms configurations are valid
+      /// \param config the config to check for validity,
+      /// \param validationReport the report (can be cast to rbprmValidationReport) with info on the trunk and ROM states,
+      /// \param throwIfInValid if true throw an exception if config is invalid,
+      /// \return whether the whole config is valid.
+      bool validateRoms(const core::Configuration_t& config,
+                         core::ValidationReportPtr_t &validationReport,bool throwIfInValid = false);
 
       /// Compute whether the roms configurations are valid
       /// \param config the config to check for validity,
       /// \param throwIfInValid if true throw an exception if config is invalid,
       /// \return whether the whole config is valid.
-      bool validateRoms(const core::Configuration_t& config,
-                        bool throwIfInValid = false);
+      bool validateRoms(const core::Configuration_t& config,bool throwIfInValid = false);
+
+      /// Compute whether the roms configurations are valid
+      /// \param config the config to check for validity,
+      /// \param filter specify constraints on all roms required to be in contact, will return
+      /// false if all specified roms are not colliding
+      /// \param throwIfInValid if true throw an exception if config is invalid,
+      /// \return whether the whole config is valid.
+      bool validateRoms(const core::Configuration_t& config,const std::vector<std::string>& filter, bool throwIfInValid= false);
 
     public:
       /// CollisionValidation for the trunk

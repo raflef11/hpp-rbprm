@@ -43,7 +43,7 @@ BOOST_AUTO_TEST_CASE (shooterCreation) {
     RbPrmShooterPtr_t shooter = RbPrmShooter::create(robot, collisionObjects);
     for(int i =0; i< 100; ++i)
     {
-        BOOST_CHECK_MESSAGE (validator->validate(*(shooter->shoot()), false),
+        BOOST_CHECK_MESSAGE (validator->validate(*(shooter->shoot())),
                                                   "Reachability condition should be verified by shooter");
     }
 }
@@ -65,7 +65,7 @@ BOOST_AUTO_TEST_CASE (shooterCreationWithFilters) {
     RbPrmShooterPtr_t shooter = RbPrmShooter::create(robot, collisionObjects, filter);
     for(int i =0; i< 100; ++i)
     {
-        BOOST_CHECK_MESSAGE (validator->validate(*(shooter->shoot()),validationReport, filter, false),
+        BOOST_CHECK_MESSAGE (validator->validate(*(shooter->shoot()),validationReport, filter),
                                                   "Reachability condition should be verified by shooter");
     }
 
@@ -73,7 +73,7 @@ BOOST_AUTO_TEST_CASE (shooterCreationWithFilters) {
     shooter = RbPrmShooter::create(robot, collisionObjects, filter);
     for(int i =0; i< 100; ++i)
     {
-        BOOST_CHECK_MESSAGE (validator->validate(*(shooter->shoot()),validationReport, filter, false),
+        BOOST_CHECK_MESSAGE (validator->validate(*(shooter->shoot()),validationReport, filter),
                                                   "Reachability condition should be verified by shooter");
     }
 
@@ -82,7 +82,7 @@ BOOST_AUTO_TEST_CASE (shooterCreationWithFilters) {
     shooter = RbPrmShooter::create(robot, collisionObjects, filter);
     for(int i =0; i< 100; ++i)
     {
-        BOOST_CHECK_MESSAGE (validator->validate(*(shooter->shoot()),validationReport, filter, false),
+        BOOST_CHECK_MESSAGE (validator->validate(*(shooter->shoot()),validationReport, filter),
                                                   "Reachability condition should be verified by shooter");
     }
 
@@ -91,7 +91,7 @@ BOOST_AUTO_TEST_CASE (shooterCreationWithFilters) {
     shooter = RbPrmShooter::create(robot, collisionObjects, filter);
     for(int i =0; i< 100; ++i)
     {
-        BOOST_CHECK_MESSAGE (validator->validate(*(shooter->shoot()),validationReport, filter, false),
+        BOOST_CHECK_MESSAGE (validator->validate(*(shooter->shoot()),validationReport, filter),
                                                   "Reachability condition should be verified by shooter");
     }
 }

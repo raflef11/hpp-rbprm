@@ -70,7 +70,7 @@ namespace hpp {
       /// \param throwIfInValid if true throw an exception if config is invalid,
       /// \return whether the whole config is valid.
       virtual bool validate (const core::Configuration_t& config,
-                 core::ValidationReport& validationReport,
+                 core::ValidationReportPtr_t &validationReport,
                  bool throwIfInValid = false);
 
     public:
