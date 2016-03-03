@@ -310,7 +310,7 @@ hpp::core::ConfigurationPtr_t RbPrmShooter::shoot () const
         while(!found && limitDis >0)
         {
             if(validator_->trunkValidation_->validate(*config, report)
-            && validator_->validateRoms(*config, filter_))
+            && validator_->validateRoms(*config, filter_, report))
             {
                 found = true;
             }

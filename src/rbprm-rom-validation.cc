@@ -58,11 +58,11 @@ namespace hpp {
 
         RbprmValidationReportPtr_t rbprmReport =boost::dynamic_pointer_cast<RbprmValidationReport>(validationReport);
 
-        /*if(rbprmReport){
+        if(rbprmReport){
           hppDout(notice,"rbprm-validation-report correctly cast");
         }else{
           hppDout(notice,"Validation report is not a valid rbprm-validation-report instance");
-        }*/
+        }
 
         ValidationReportPtr_t report;
         bool collision = !hpp::core::CollisionValidation::validate(config, report);
@@ -93,6 +93,8 @@ namespace hpp {
               validationReport = colReport;
             }
         }
+
+        rbprmReport->ROMFilters.insert(std::make_pair(robot_->name(),collision));  // here report = 0;
         return collision;
     }
   }// namespace rbprm
