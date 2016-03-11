@@ -37,6 +37,7 @@ SET(${LIBRARY_NAME}_SOURCES
 	stability/support.cc ${PROJECT_SOURCE_DIR}/include/hpp/rbprm/stability/support.hh
         ik-solver.cc ${PROJECT_SOURCE_DIR}/include/hpp/rbprm/ik-solver.hh
         utils/stop-watch.cc ${PROJECT_SOURCE_DIR}/include/utils/stop-watch.hh
+        utils/algorithms.cc ${PROJECT_SOURCE_DIR}/include/utils/algorithms.h
         rbprm-profiler.cc ${PROJECT_SOURCE_DIR}/include/hpp/rbprm/rbprm-profiler.hh
         ${PROJECT_SOURCE_DIR}/include/utils/Stdafx.hh
         planner/dynamic-planner.cc ${PROJECT_SOURCE_DIR}/include/hpp/rbprm/planner/dynamic-planner.hh

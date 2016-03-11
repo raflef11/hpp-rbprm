@@ -18,7 +18,7 @@
 #include <hpp/fcl/collision.h>
 #include <hpp/fcl/BVH/BVH_model.h>
 #include <hpp/rbprm/rbprm-validation-report.hh>
-
+#include "utils/algorithms.h"
 
 namespace hpp {
   using namespace core;
@@ -83,9 +83,21 @@ namespace hpp {
                 const fcl::Vec3f& v3 = surface->vertices[tr[2]];
                 fcl::Vec3f normal = (v2 - v1).cross(v3 - v1);
                 normal.normalize();
-                if(normal.dot(filter_.normal_)>=filter_.range_)
+                if(normal.dot(filter_.normal_)>=filter_.range_){
                     collision = true;
+                }
             }
+            // test contact area size :  
+            //TODO remove it after the precomputation of the meshs is working
+           if(collision){
+              geom::BVHModelOBConst_Ptr_t model1 =  geom::GetModel(colReport->object1->fcl());
+              geom::BVHModelOBConst_Ptr_t model2 =  geom::GetModel(colReport->object2->fcl());
+              geom::T_Point intersection = geom::intersectPolygonePlane(model1,model2,filter_.normal_,0,colReport->result,false,filter_.range_);
+              double a = geom::area(intersection.begin(),intersection.end());
+              if(a <= 0.1)
+                collision = false;
+            }
+            
           //  hppDout(notice,"robotRom name : "<<robot_->name());
             if(rbprmReport){  // if the report is a correct rbprm report, we add the rom information
               rbprmReport->ROMReports.insert(std::make_pair(robot_->name(),colReport));
