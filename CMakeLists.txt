@@ -46,7 +46,7 @@ SET(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
 
 FIND_PACKAGE( OpenMP REQUIRED)
 find_package(Boost)
-find_package(Boost 1.54.0 COMPONENTS filesystem system REQUIRED)
+find_package(Boost 1.46.0 COMPONENTS filesystem system REQUIRED)
 
 if(OPENMP_FOUND)
     message("OPENMP FOUND")
@@ -87,6 +87,8 @@ SET(${PROJECT_NAME}_HEADERS
     include/hpp/rbprm/planner/steering-method-parabola.hh
     include/hpp/rbprm/planner/rbprm-node.hh
     include/hpp/rbprm/planner/rbprm-roadmap.hh
+    include/hpp/rbprm/planner/prm-planner.hh
+    include/hpp/rbprm/projection-shooter.hh
     include/utils/algorithms.h
   )
 

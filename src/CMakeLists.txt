@@ -41,9 +41,11 @@ SET(${LIBRARY_NAME}_SOURCES
         rbprm-profiler.cc ${PROJECT_SOURCE_DIR}/include/hpp/rbprm/rbprm-profiler.hh
         ${PROJECT_SOURCE_DIR}/include/utils/Stdafx.hh
         planner/dynamic-planner.cc ${PROJECT_SOURCE_DIR}/include/hpp/rbprm/planner/dynamic-planner.hh
-        planner/steering-dynamic.cc ${PROJECT_SOURCE_DIR}/include/hpp/rbprm/planner/steering-dynamic.hh
+        planner/prm-planner.cc ${PROJECT_SOURCE_DIR}/include/hpp/rbprm/planner/prm-planner.hh
+		planner/steering-dynamic.cc ${PROJECT_SOURCE_DIR}/include/hpp/rbprm/planner/steering-dynamic.hh
         planner/steering-method-parabola.cc ${PROJECT_SOURCE_DIR}/include/hpp/rbprm/planner/steering-method-parabola.hh
         planner/parabola-path.cc ${PROJECT_SOURCE_DIR}/include/hpp/rbprm/planner/parabola-path.hh
+        projection-shooter.cc ${PROJECT_SOURCE_DIR}/include/hpp/rbprm/projection-shooter.hh
 
   )
 

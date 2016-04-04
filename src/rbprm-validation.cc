@@ -14,6 +14,7 @@
 // received a copy of the GNU Lesser General Public License along with
 // hpp-rbprm. If not, see <http://www.gnu.org/licenses/>.
 
+#include <hpp/util/debug.hh>
 #include <hpp/rbprm/rbprm-validation.hh>
 #include <hpp/core/collision-validation.hh>
 #include <hpp/rbprm/rbprm-validation-report.hh>
@@ -61,16 +62,22 @@ namespace hpp {
 
     RbPrmValidation::RbPrmValidation (const model::RbPrmDevicePtr_t& robot
                                       , const std::vector<std::string>& filter, const std::map<std::string, rbprm::NormalFilter>& normalFilters)
-        : trunkValidation_(tuneFclValidation(robot))
-        , romValidations_(createRomValidations(robot, normalFilters))
-        , defaultFilter_(filter)
+      : trunkValidation_(tuneFclValidation(robot))
+      , romValidations_(createRomValidations(robot, normalFilters))
+      , defaultFilter_(filter)
     {
-        for(std::vector<std::string>::const_iterator cit = defaultFilter_.begin();
-            cit != defaultFilter_.end(); ++cit)
+      for(std::vector<std::string>::const_iterator cit = defaultFilter_.begin();
+	  cit != defaultFilter_.end(); ++cit)
         {
-            if(romValidations_.find(*cit) == romValidations_.end())
+	  hppDout (info, "romValidations_ size = " << romValidations_.size ());
+	  for (T_RomValidation::const_iterator it = romValidations_.begin (); 
+	       it != romValidations_.end (); it++) {
+	    hppDout (info, "romValidations_ filters = " << (*it).first);
+      }
+	  if(romValidations_.find(*cit) == romValidations_.end())
             {
-                std::cout << "warning: default filter impossible to match in rbprmshooter" << std::endl;
+	      hppDout (info, "defaultFilter *cit = " << *cit);
+	      std::cout << "warning: default filter impossible to match in rbprmshooter" << std::endl;
             }
         }
     }

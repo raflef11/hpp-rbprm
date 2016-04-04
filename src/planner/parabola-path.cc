@@ -40,31 +40,22 @@ namespace hpp {
                                 vector_t coefs) :
       parent_t (interval_t (0, length), device->configSize (),
                 device->numberDof ()), device_ (device), initial_ (init),
-      end_ (end), coefficients_ (vector_t(3)), length_ (length),
-      workspaceDim_ (false)
+      end_ (end), coefficients_ (vector_t(4)), length_ (length)
     {
       assert (device);
-      /* Define dimension: 2D or 3D */
-      std::string name = device->getJointVector () [0]->name ();
-      if (name == "base_joint_xyz") {// 3D (2D by default)
-        workspaceDim_ = true;
-        coefficients_.resize (5);
-      }
       coefficients (coefs);
     }
 
     ParabolaPath::ParabolaPath (const ParabolaPath& path) :
       parent_t (path), device_ (path.device_), initial_ (path.initial_),
       end_ (path.end_), coefficients_ (path.coefficients_),
-      length_ (path.length_), workspaceDim_ (path.workspaceDim_)
+      length_ (path.length_)
     {
     }
 
     bool ParabolaPath::impl_compute (core::ConfigurationOut_t result,
                                      value_type param) const
     {
-
-      //hppDout (info, "param: " << param);
       if (param == 0 || initial_(0) == end_(0)) {
         result = initial_;
         return true;
@@ -77,52 +68,49 @@ namespace hpp {
       const size_type nbConfig = device_->configSize();
       const size_type dirDim = device_->extraConfigSpace ().dimension ();
       const value_type u = param/length_;
-      
-      result (0) = (1 - u)*initial_(0) + u*end_(0);
+      const value_type theta = coefficients_(3);
+      const value_type x_theta_max = - 0.5 *
+	coefficients_ (1) / coefficients_ (0);
+      const value_type x_theta_initial = cos(theta)*initial_ (0) +
+	sin(theta)*initial_ (1);
+      const value_type x_theta_end = cos(theta)*end_ (0) +
+	sin(theta)*end_ (1);
+      const value_type u_max = (x_theta_max - x_theta_initial)
+	/ (x_theta_end - x_theta_initial);
+      const bool tanThetaNotDefined = (theta < M_PI/2 + 1e-2 && theta > M_PI/2 - 1e-2) || (theta > -M_PI/2 - 1e-2 && theta < -M_PI/2 + 1e-2);
 
-      if (!workspaceDim_) { /* 2D */
-        result (1) = coefficients_(0)*result (0)*result (0)
-            + coefficients_(1)*result (0) + coefficients_(2);
-        //hppDout (info, "x: " << result (0));
-        //hppDout (info, "f(x) = " << result (1));
-
-        result (nbConfig-dirDim) = (1 - u)
-            * initial_(nbConfig-dirDim) + u*end_(nbConfig-dirDim);
-        result (nbConfig-dirDim+1) = (1 - u)
-            * initial_(nbConfig-dirDim+1) + u*end_(nbConfig-dirDim+1);
+      if (!tanThetaNotDefined) { //theta != +- pi/2
+	const value_type tanTheta = tan(theta);
+	result (0) = (1 - u)*initial_(0) + u*end_(0);
+	result (1) = tanTheta*result (0) -tanTheta*initial_(0) + initial_(1);
+	const value_type x_theta = cos(theta)*result (0) +
+	  sin(theta)*result (1);
+	result (2) = coefficients_(0)*x_theta*x_theta
+	  + coefficients_(1)*x_theta + coefficients_(2);
       }
-      else { /* 3D */
-        result (1) = tan(coefficients_(3))*result (0) + coefficients_(4);
+      else { //theta = +- pi/2
+	result (0) = initial_ (0);
+	result (1) = (1 - u)*initial_(1) + u*end_(1);
+	const value_type x_theta = cos(theta)*result (0) +
+	  sin(theta)*result (1);
+	result (2) = coefficients_(0)*x_theta*x_theta
+	  + coefficients_(1)*x_theta + coefficients_(2);
+      }
 
-        const value_type theta = coefficients_(3);
-        const value_type x_theta = cos(theta)*result (0) +
-            sin(theta)*result (1);
-        const value_type x_theta_max = - 0.5 *
-            coefficients_ (1) / coefficients_ (0);
-        const value_type x_theta_initial = cos(theta)*initial_ (0) +
-            sin(theta)*initial_ (1);
-        const value_type x_theta_end = cos(theta)*end_ (0) +
-            sin(theta)*end_ (1);
-        const value_type u_max = (x_theta_max - x_theta_initial)
-            / (x_theta_end - x_theta_initial);
+      /* Quaternions interpolation */
+      const core::JointPtr_t SO3joint = device_->getJointByName ("base_joint_SO3");
+      const std::size_t rank = SO3joint->rankInConfiguration ();
+      const core::size_type dimSO3 = SO3joint->configSize ();
+      SO3joint->configuration ()->interpolate
+	(initial_, end_, u, rank, result);
 
-        result (2) = coefficients_(0)*x_theta*x_theta
-            + coefficients_(1)*x_theta + coefficients_(2);
-
-        /* Quaternions interpolation */
-        const core::JointPtr_t SO3joint = device_->getJointByName ("base_joint_SO3");
-        const std::size_t rank = SO3joint->rankInConfiguration ();
-        const core::size_type dimSO3 = SO3joint->configSize ();
-        SO3joint->configuration ()->interpolate
-            (initial_, end_, u, rank, result);
-
-        /* if robot has internal DoF (except freeflyer ones) */
-        // translation dimension of freeflyer hardcoded...
-        // min value (to reach for u = u_max) hardcoded...
-        // manual interpolation since joint not available with index...
-        const value_type maxVal = 0; // because here initial_ = end_ ...
-        if (nbConfig > dirDim + 3 + dimSO3) {
-          for (core::size_type i = 7; i<nbConfig-dirDim; i++)
+      /* if robot has internal DoF (except freeflyer ones) */
+      // translation dimension of freeflyer hardcoded...
+      // min value (to reach for u = u_max) hardcoded...
+      // manual interpolation since joint not available with index...
+      const value_type maxVal = 0; // because here initial_ = end_ ...
+      if (nbConfig > dirDim + 3 + dimSO3) {
+	for (core::size_type i = 7; i<nbConfig-dirDim; i++)
           {
             if (u <= u_max) {
               const value_type u_prime = u / u_max;
@@ -133,16 +121,15 @@ namespace hpp {
               result (i) = (1 - u_prime) * maxVal + u_prime * end_ (i);
             }
           }
-        }
-
-        /* Normal vector interpolation
-     result (nbConfig-dirDim) = (1 - u) *
-     initial_(nbConfig-dirDim) + u*end_(nbConfig-dirDim);
-     result (nbConfig-dirDim+1) = (1 - u) *
-     initial_(nbConfig-dirDim+1) + u*end_(nbConfig-dirDim+1);
-     result (nbConfig-dirDim+2) = (1 - u) *
-     initial_(nbConfig-dirDim+2) + u*end_(nbConfig-dirDim+2);*/
       }
+
+      /* Normal vector interpolation
+	 result (nbConfig-dirDim) = (1 - u) *
+	 initial_(nbConfig-dirDim) + u*end_(nbConfig-dirDim);
+	 result (nbConfig-dirDim+1) = (1 - u) *
+	 initial_(nbConfig-dirDim+1) + u*end_(nbConfig-dirDim+1);
+	 result (nbConfig-dirDim+2) = (1 - u) *
+	 initial_(nbConfig-dirDim+2) + u*end_(nbConfig-dirDim+2);*/
       return true;
     }
 
@@ -176,14 +163,9 @@ namespace hpp {
       // for N = 4, computation error ~= 1e-5.
       // for N = 20, computation error ~= 1e-11.
       value_type length = 0;
-      value_type x1 = q1 (0);
-      value_type x2 = q2 (0);
-
-      if (workspaceDim_) { // 3D
-        const value_type theta = coefficients_ (3);
-        x1 = cos(theta) * q1 (0)  + sin(theta) * q1 (1); // x_theta_0
-        x2 = cos(theta) * q2 (0) + sin(theta) * q2 (1); // x_theta_imp
-      }
+      const value_type theta = coefficients_ (3);
+      value_type x1 = cos(theta) * q1 (0)  + sin(theta) * q1 (1); // x_theta_0
+      value_type x2 = cos(theta) * q2 (0) + sin(theta) * q2 (1); // x_theta_imp
 
       // Define integration bounds
       if (x1 > x2) { // re-order integration bounds
