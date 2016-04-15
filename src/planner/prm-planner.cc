@@ -109,7 +109,7 @@ namespace hpp {
 	if (cc != impactNode->connectedComponent ()) {
 
 	  // iteration on each node of the current connected-component
-	  for (core::Nodes_t::const_iterator n_it = cc->nodes ().begin (); 
+	  for (core::NodeVector_t::const_iterator n_it = cc->nodes ().begin (); 
 	       n_it != cc->nodes ().end (); ++n_it){
 	    core::ConfigurationPtr_t qCC = (*n_it)->configuration ();
 

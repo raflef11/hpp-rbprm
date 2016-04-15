@@ -23,6 +23,7 @@
 #include <hpp/model/device.hh>
 
 #include <deque>
+
 namespace hpp {
 
   namespace rbprm {
@@ -64,7 +65,9 @@ namespace hpp {
       const fcl::Vec3f effectorPosition_;
       const Eigen::MatrixXd jacobian_;
       /// Product of the jacobian by its transpose
-      const Eigen::Matrix <model::value_type, 6, 6> jacobianProduct_;
+      //const Eigen::Matrix <model::value_type, 6, 6> jacobianProduct_;
+      // above line causes error -> http://eigen.tuxfamily.org/dox-devel/group__TopicUnalignedArrayAssert.html
+      const Eigen::MatrixXd jacobianProduct_; // instead
       /// id in sample container
       const std::size_t id_;
       const double manipulability_;

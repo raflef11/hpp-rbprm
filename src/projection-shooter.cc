@@ -27,7 +27,7 @@
 # include <hpp/core/configuration-shooter.hh>
 # include <hpp/core/config-validations.hh>
 # include <hpp/core/distance-between-objects.hh>
-# include <hpp/core/parabola/parabola-library.hh>
+# include <hpp/rbprm/parabola-library.hh>
 # include <hpp/rbprm/projection-shooter.hh>
 # include <hpp/rbprm/rbprm-validation.hh>
 # include <hpp/rbprm/rbprm-validation-report.hh>
@@ -133,7 +133,7 @@ namespace hpp {
       qout (index) = n [0];
       qout (index + 1) = n [1];
       qout (index + 2) = n [2];
-      qout = core::setOrientation (robot_, qout);
+      qout = setOrientation (robot_, qout); //PB linking FCL quat.fromRotation (Mat)
       if (!configValidations->validate (qout, validationReport))
 	return qout; // thrown by planner
 

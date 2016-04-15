@@ -341,7 +341,7 @@ hpp::core::ConfigurationPtr_t RbPrmShooter::shoot () const
                 // v0 move away from normal
                 //get normal from collision tri
                 lastDirection = triangles_[boost::dynamic_pointer_cast<CollisionValidationReport>(report)->result.getContact(0).b2].first;
-		hppDout (info, "lastDirection = " << lastDirection);
+		//hppDout (info, "lastDirection = " << lastDirection);
                 Translate(robot_,config, -lastDirection *
                           (std::abs(boost::dynamic_pointer_cast<CollisionValidationReport>(report)->result.getContact(0).penetration_depth) +0.03));
                  limitDis--;
