@@ -41,11 +41,12 @@ namespace hpp {
     (const core::ProblemPtr_t& problem):
       SteeringMethod (problem), problem_ (problem),
       device_ (problem-> robot ()),
-      distance_ (core::WeighedDistance::create (device_.lock ())), weak_ (),
+      distance_ (core::WeighedDistance::create (problem->robot())), weak_ (),
       g_(9.81), V0max_ (problem->vmax_), Vimpmax_ (problem->vmax_),
-      mu_ (problem->mu_), Dalpha_ (0.001), nLimit_ (6)
-    {
-    }
+      mu_ (problem->mu_), Dalpha_ (0.001), nLimit_ (6), initialConstraint_(true)
+     {
+        hppDout(notice,"Constructor steering-method-parabola");
+     }
 
     core::PathPtr_t SteeringMethodParabola::impl_compute
     (core::ConfigurationIn_t q1, core::ConfigurationIn_t q2)
@@ -111,6 +112,7 @@ namespace hpp {
 	  > q1 (index+2) * q1 (index+2)) { // cone 1 not vertical
 	if (!fiveth_constraint (q1, theta, 1, &delta1)) {
 	  hppDout (info, "plane_theta not intersecting first cone");
+	  initialConstraint_ = false;
 	  problem_->parabolaResults_ [1] ++;
 	  return core::PathPtr_t ();
 	}

@@ -76,7 +76,7 @@ namespace hpp {
       }
 
       const core::RbprmRoadmapPtr_t& rbprmRoadmap() const {
-        return roadmap_;
+        return rbRoadmap_;
       }
 
     protected:
@@ -99,7 +99,8 @@ namespace hpp {
       mutable core::Configuration_t qProj_;
       PrmPlannerWkPtr_t weakPtr_;
       SteeringMethodParabolaPtr_t smParabola_;
-      const core::RbprmRoadmapPtr_t roadmap_;
+      const core::RbprmRoadmapPtr_t rbRoadmap_;
+      const core::RoadmapPtr_t roadmap_;
     };
     /// \}
   } // namespace rbprm

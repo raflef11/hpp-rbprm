@@ -3,6 +3,7 @@
 
 #include <hpp/core/node.hh>
 #include <hpp/rbprm/rbprm-validation-report.hh>
+#include <polytope/stability_margin.h>
 
 namespace hpp {
   namespace core {
@@ -49,10 +50,15 @@ namespace hpp {
       void collisionReport(RbprmValidationReportPtr_t report){
         collisionReport_ = report;
       }
+      
+      void giwc(const polytope::ProjectedCone* giwc){giwc_ = giwc;}
+      
+      const polytope::ProjectedCone* giwc(){return giwc_;}
 
     private:
       fcl::Vec3f normal_;
       RbprmValidationReportPtr_t collisionReport_;
+      const polytope::ProjectedCone* giwc_;
 
     }; // class
 

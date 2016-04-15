@@ -40,7 +40,7 @@ namespace hpp {
       configurationShooter_ (problem.configurationShooter()),
       qProj_ (problem.robot ()->configSize ()),
       smParabola_(rbprm::SteeringMethodParabola::create((core::ProblemPtr_t(&problem)))),
-      roadmap_(core::RbprmRoadmap::create (problem.distance (),problem.robot()))
+      rbRoadmap_(core::RbprmRoadmap::create (problem.distance (),problem.robot())), roadmap_(boost::dynamic_pointer_cast<core::Roadmap>(rbRoadmap_))
     {
     }
 
@@ -50,7 +50,7 @@ namespace hpp {
       configurationShooter_ (problem.configurationShooter()),
       qProj_ (problem.robot ()->configSize ()),
       smParabola_(rbprm::SteeringMethodParabola::create((core::ProblemPtr_t(&problem)))),
-      roadmap_(core::RbprmRoadmap::create (problem.distance (),problem.robot()))
+      rbRoadmap_(core::RbprmRoadmap::create (problem.distance (),problem.robot())), roadmap_(boost::dynamic_pointer_cast<core::Roadmap>(rbRoadmap_))
     {
     }
 
@@ -58,19 +58,21 @@ namespace hpp {
     {
       // add 4 extraDof to save contact normal (used for parabola computation)
       hppDout(notice,"set extra conf");
-      problem().robot()->setDimensionExtraConfigSpace(problem().robot()->extraConfigSpace().dimension() + 4);
+      /*problem().robot()->setDimensionExtraConfigSpace(problem().robot()->extraConfigSpace().dimension() + 4);
       model::ExtraConfigSpace& ecs = problem().robot()->extraConfigSpace ();
       for (size_type i = 0; i < ecs.dimension (); i++) {
 	ecs.lower (i) = -1;
 	ecs.upper (i) = 1;
       }
       ecs.lower (ecs.dimension () - 1) = -M_PI;
-      ecs.upper (ecs.dimension () - 1) = M_PI;
+      ecs.upper (ecs.dimension () - 1) = M_PI;*/
 
       //  PathPlanner::startSolve();
       hppDout(notice,"startsolve");
       problem().checkProblem ();
       // Tag init and goal configurations in the roadmap
+      if (roadmap ())
+	hppDout (info, "roadmap found");
       roadmap()->resetGoalNodes ();
       roadmap()->initNode (problem().initConfig ());
       const core::Configurations_t goals (problem().goalConfigs ());

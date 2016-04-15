@@ -41,6 +41,8 @@
 #include <hpp/fcl/collision_data.h>
 #include <hpp/fcl/intersect.h>
 #include "utils/algorithms.h"
+#include <polytope/stability_margin.h>
+
 
 namespace hpp {
   namespace rbprm {
@@ -64,7 +66,7 @@ namespace hpp {
       configurationShooter_ (problem.configurationShooter()),
       qProj_ (problem.robot ()->configSize ()),
       smParabola_(rbprm::SteeringMethodParabola::create((core::ProblemPtr_t(&problem)))),
-      roadmap_(core::RbprmRoadmap::create (problem.distance (),problem.robot()))
+      rbRoadmap_(core::RbprmRoadmap::create (problem.distance (),problem.robot())), roadmap_(boost::dynamic_pointer_cast<core::Roadmap>(rbRoadmap_))
     {
     }
     
@@ -74,7 +76,7 @@ namespace hpp {
       configurationShooter_ (problem.configurationShooter()),
       qProj_ (problem.robot ()->configSize ()),
       smParabola_(rbprm::SteeringMethodParabola::create((core::ProblemPtr_t(&problem)))),
-      roadmap_(core::RbprmRoadmap::create (problem.distance (),problem.robot()))
+      rbRoadmap_(core::RbprmRoadmap::create (problem.distance (),problem.robot())), roadmap_(boost::dynamic_pointer_cast<core::Roadmap>(rbRoadmap_))
     {
     }
     
@@ -104,6 +106,7 @@ namespace hpp {
       problem().checkProblem ();
       // Tag init and goal configurations in the roadmap
       roadmap()->resetGoalNodes ();
+      
       roadmap()->initNode (problem().initConfig ());
       const core::Configurations_t goals (problem().goalConfigs ());
       for (core::Configurations_t::const_iterator itGoal = goals.begin ();
@@ -111,6 +114,8 @@ namespace hpp {
         roadmap()->addGoalNode (*itGoal);
       }
       hppDout(notice,"startSolve OK");
+      
+      polytope::init_library();
     }
     
     core::PathPtr_t DynamicPlanner::extend (const core::NodePtr_t& near,
@@ -479,7 +484,7 @@ namespace hpp {
             roadmap ()->addEdge (*itn, initNode, path->reverse());
           }else if(validPath->timeRange ().second != path->timeRange ().first){
             core::ConfigurationPtr_t q_new(new core::Configuration_t(validPath->end()));
-            core::NodePtr_t x_new = roadmap()->addNodeAndEdges(initNode,q_new,validPath);
+            core::NodePtr_t x_new = rbprmRoadmap()->addNodeAndEdges(initNode,q_new,validPath);
             computeGIWC(x_new);
             hppDout(notice,"### Straight path not fully valid, try parabola path between qnew and qGoal");
             hppStartBenchmark(EXTENDPARA);
@@ -493,10 +498,10 @@ namespace hpp {
               if (paraPathValid) { // only add if the full path is valid, otherwise it's the same as the straight line (because we can't extract a subpath of a parabola path)
                 hppDout(notice, "#### parabola path valid !");
                 core::ConfigurationPtr_t q_last (new core::Configuration_t(validPath->end ()));
-                core::NodePtr_t x_last = roadmap()->addNode(q_last);
+                core::NodePtr_t x_last = rbprmRoadmap()->addNode(q_last);
                 computeGIWC(x_last);
-                roadmap()->addEdge(x_new,x_last,validPath);
-                roadmap()->addEdge(x_last,x_new,validPath->reverse());
+                rbprmRoadmap()->addEdge(x_new,x_last,validPath);
+                rbprmRoadmap()->addEdge(x_last,x_new,validPath->reverse());
               }else {
                 hppDout(notice, "#### parabola path not valid !");
               }
@@ -557,7 +562,7 @@ namespace hpp {
             roadmap ()->addEdge (*itn, initNode, path->reverse());
           }else if(validPath->timeRange ().second != path->timeRange ().first){
             core::ConfigurationPtr_t q_new(new core::Configuration_t(validPath->end()));
-            core::NodePtr_t x_new = roadmap()->addNodeAndEdges(initNode,q_new,validPath);
+            core::NodePtr_t x_new = rbprmRoadmap()->addNodeAndEdges(initNode,q_new,validPath);
             pathVector = core::PathVector::create (validPath->outputSize (), validPath->outputDerivativeSize ());
             pathVector->appendPath (validPath);
             hppDout(notice,"### Straight path not fully valid, try parabola path between qnew and qGoal");
@@ -572,8 +577,8 @@ namespace hpp {
               if (paraPathValid) { // only add if the full path is valid, otherwise it's the same as the straight line (because we can't extract a subpath of a parabola path)
                 hppDout(notice, "#### parabola path valid !");
                 core::ConfigurationPtr_t q_last (new core::Configuration_t(validPath->end ()));
-                core::NodePtr_t x_last = roadmap()->addNode(q_last);
-                roadmap()->addEdge(x_new,x_last,validPath);
+                core::NodePtr_t x_last = rbprmRoadmap()->addNode(q_last);
+                rbprmRoadmap()->addEdge(x_new,x_last,validPath);
                 pathVector->appendPath (validPath);
               }else {
                 hppDout(notice, "#### parabola path not valid !");
@@ -611,16 +616,16 @@ namespace hpp {
     
     
     
-    void DynamicPlanner::computeGIWC(const core::NodePtr_t x, core::ValidationReportPtr_t report){
+    void DynamicPlanner::computeGIWC(const core::NodePtr_t node, core::ValidationReportPtr_t report){
       hppDout(notice,"## compute GIWC");
-      core::ConfigurationPtr_t q = x->configuration();
-      core::RbprmNodePtr_t x_cast = static_cast<core::RbprmNodePtr_t>(x);
+      core::ConfigurationPtr_t q = node->configuration();
+      core::RbprmNodePtr_t node_cast = static_cast<core::RbprmNodePtr_t>(node);
       // fil normal information in node
-      if(x_cast){
+      if(node_cast){
         size_t cSize = problem().robot()->configSize();
         hppDout(info,"~~ NODE cast correctly");
-        x_cast->normal((*q)[cSize-3],(*q)[cSize-2],(*q)[cSize-1]);
-        hppDout(info,"~~ normal = "<<x_cast->getNormal());
+        node_cast->normal((*q)[cSize-3],(*q)[cSize-2],(*q)[cSize-1]);
+        hppDout(info,"~~ normal = "<<node_cast->getNormal());
         
       }else{
         hppDout(error,"~~ NODE cannot be cast");
@@ -645,8 +650,14 @@ namespace hpp {
         hppDout(warning,"~~ ComputeGIWC : roms filter not respected"); // shouldn't happen
       }
       
+      //TODO
+      polytope::T_rotation_t rotContact(3*rbReport->ROMReports.size(),3);
+      polytope::vector_t posContact(3*rbReport->ROMReports.size());
+      
+      
       // get the 2 object in contact for each ROM :
       hppDout(info,"~~ Number of roms in collision : "<<rbReport->ROMReports.size());
+      size_t indexRom = 0 ;
       for(std::map<std::string,core::CollisionValidationReportPtr_t>::const_iterator it = rbReport->ROMReports.begin() ; it != rbReport->ROMReports.end() ; ++it)
       {
         hppDout(info,"~~ for rom : "<<it->first);
@@ -707,68 +718,48 @@ namespace hpp {
         
         
         
-        ////////// 2D code ///////////
+      
         
-        // re order the vertices : 
-        
-        /*
-        hppDout(notice,"ordered obj2 : ");
-        geom::projectZ(vertices2.begin(),vertices2.end());
-        geom::T_Point vert2Ordered = geom::convexHull(vertices2.begin(),vertices2.end());
-        std::ostringstream ss4;
-        ss4<<"[";
-        for(size_t i = 0; i < vert2Ordered.size() ; ++i){
-          ss4<<"["<<vert2Ordered[i][0]<<","<<vert2Ordered[i][1]<<","<<vert2Ordered[i][2]<<"]";
-          if(i< (vert2Ordered.size() -1))
-            ss4<<",";
-        }
-        ss4<<"]";
-        std::cout<<ss4.str()<<std::endl;
-        
-        
-        hppDout(notice,"ordered obj1 : ");
-        geom::projectZ(vertices1.begin(),vertices1.end());          
-        geom::T_Point vert1Ordered = geom::convexHull(vertices1.begin(),vertices1.end());
-        std::ostringstream ss3;
-        ss3<<"[";
-        for(size_t i = 0; i < vert1Ordered.size() ; ++i){
-          ss3<<"["<<vert1Ordered[i][0]<<","<<vert1Ordered[i][1]<<","<<vert1Ordered[i][2]<<"]";
-          if(i< (vert1Ordered.size() -1))
-            ss3<<",";
-        }
-        ss3<<"]";
-        std::cout<<ss3.str()<<std::endl;
-        
-        // compute intersection
-        
-        
-        
-        geom::T_Point inter = geom::computeIntersection(vert1Ordered,vert2Ordered);
-        
-        hppDout(notice,"~~ 2D intersection size : "<<inter.size());
-        std::ostringstream ss5;
-        ss5<<"[";
-        // debug display :
-        for(geom::T_Point::const_iterator it = inter.begin() ; it != inter.end() ; ++it){
-          ss5<<"["<<(*it)[0]<<","<<(*it)[1]<<","<<(*it)[2]<<"]";
-          if(it != (inter.end() - 1))
-            ss5<<",";
-        }
-        ss5<<"]";
-        std::cout<<ss5.str()<<std::endl;
-        */
-        ////////// end 2D code ///////////
-        
-        // direct call to fcl (doesn't work)
         hppStartBenchmark (COMPUTE_INTERSECTION);
-        geom::intersectPolygonePlane(model1,model2,fcl::Vec3f(0,0,1),geom::ZJUMP,result);
+        geom::T_Point hull = geom::intersectPolygonePlane(model1,model2,fcl::Vec3f(0,0,1),geom::ZJUMP,result);
         hppStopBenchmark (COMPUTE_INTERSECTION);
         hppDisplayBenchmark (COMPUTE_INTERSECTION);
         
-
         
-      
+        // todo : compute center point of the hull
+        polytope::vector3_t normal,tangent0,tangent1;
+        geom::Point center = geom::center(hull.begin(),hull.end());
+        posContact.segment<3>(indexRom*3) = center;
+        std::cout<<center<<std::endl<<std::endl;
+        polytope::rotation_t rot; 
+        normal = -result.getContact(0).normal;
+        hppDout(notice," !!! normal for GIWC : "<<normal);
+        // compute tangent vector : 
+        tangent0 = normal.cross(polytope::vector3_t(1,0,0));
+        if(tangent0.dot(tangent0)<0.001)
+          tangent0 = normal.cross(polytope::vector3_t(0,1,0)); 
+        tangent1 = normal.cross(tangent0);
+        rot(0,0) = tangent0(0) ; rot(0,1) = tangent1(0) ; rot(0,2) = normal(0);
+        rot(1,0) = tangent0(1) ; rot(1,1) = tangent1(1) ; rot(1,2) = normal(1);
+        rot(2,0) = tangent0(2) ; rot(2,1) = tangent1(2) ; rot(2,2) = normal(2);
+        
+        rotContact.block<3,3>(indexRom*3,0) = rot;
+        std::cout<<rot<<std::endl<<std::endl;
+        
+        indexRom++;
       } // for each ROMS
+      
+      polytope::vector_t x(rbReport->ROMReports.size());
+      polytope::vector_t y(rbReport->ROMReports.size());
+      polytope::vector_t nu(rbReport->ROMReports.size());
+      for(size_t k = 0 ; k<rbReport->ROMReports.size() ; ++k){
+        x(k) = 0.25; // approx size of foot
+        y(k) = 0.15; 
+        nu(k) = 0.5;
+      }
+      // save giwc in node structure
+      node_cast->giwc(polytope::U_stance(rotContact,posContact,nu,x,y));
+      
       
     }// computeGIWC
     
