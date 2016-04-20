@@ -730,7 +730,7 @@ namespace hpp {
         polytope::vector3_t normal,tangent0,tangent1;
         geom::Point center = geom::center(hull.begin(),hull.end());
         posContact.segment<3>(indexRom*3) = center;
-        std::cout<<center<<std::endl<<std::endl;
+        //std::cout<<center<<std::endl<<std::endl;
         polytope::rotation_t rot; 
         normal = -result.getContact(0).normal;
         hppDout(notice," !!! normal for GIWC : "<<normal);
@@ -744,7 +744,7 @@ namespace hpp {
         rot(2,0) = tangent0(2) ; rot(2,1) = tangent1(2) ; rot(2,2) = normal(2);
         
         rotContact.block<3,3>(indexRom*3,0) = rot;
-        std::cout<<rot<<std::endl<<std::endl;
+        //std::cout<<rot<<std::endl<<std::endl;
         
         indexRom++;
       } // for each ROMS

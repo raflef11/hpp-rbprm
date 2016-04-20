@@ -241,8 +241,7 @@ namespace
                 double weight = TriangleArea(tri);
                 sum += weight;
                 weights_.push_back(weight);
-                // TODO COMPUTE NORMALS
-                fcl::Vec3f normal = (tri.p3 - tri.p1).cross(tri.p2 - tri.p1);
+                fcl::Vec3f normal = (tri.p2 - tri.p1).cross(tri.p3 - tri.p1);
                 normal.normalize();
                 triangles_.push_back(std::make_pair(normal,tri));
             }
@@ -270,7 +269,7 @@ namespace
           wit != weights_.end();
           ++wit, ++trit)
       {
-          if(*wit <= r) return *trit;
+          if(*wit >= r) return *trit;
       }
       return triangles_[triangles_.size()-1]; // not supposed to happen
   }
@@ -336,9 +335,11 @@ hpp::core::ConfigurationPtr_t RbPrmShooter::shoot () const
                 // mouve out by penetration depth
                 // v0 move away from normal
                 //get normal from collision tri
+
                 lastDirection = triangles_[boost::dynamic_pointer_cast<CollisionValidationReport>(report)->result.getContact(0).b2].first;
-                Translate(robot_,config, -lastDirection *
+                Translate(robot_,config, lastDirection *
                           (std::abs(boost::dynamic_pointer_cast<CollisionValidationReport>(report)->result.getContact(0).penetration_depth) +0.03));
+
                  limitDis--;
             }
         }
@@ -363,8 +364,9 @@ hpp::core::ConfigurationPtr_t RbPrmShooter::shoot () const
         // save the normal (code from Mylène)
         if(extraDim >= 3 ){
           size_type index = robot_->configSize() -3;  // rempli toujours les 3 derniers
-          for (size_type i=0; i<3; ++i)
-            (*config) [index + i] = -lastDirection [i];
+          for (size_type i=0; i<3; ++i){
+            (*config) [index + i] = lastDirection [i];
+          }
         }
         limit--;
     }
