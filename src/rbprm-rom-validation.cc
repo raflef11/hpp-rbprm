@@ -93,6 +93,7 @@ namespace hpp {
               geom::BVHModelOBConst_Ptr_t model1 =  geom::GetModel(colReport->object1->fcl());
               geom::BVHModelOBConst_Ptr_t model2 =  geom::GetModel(colReport->object2->fcl());
               geom::T_Point intersection = geom::intersectPolygonePlane(model1,model2,filter_.normal_,0,colReport->result,false,filter_.range_);
+              
               double a = geom::area(intersection.begin(),intersection.end());
               if(a <= 0.1)
                 collision = false;
