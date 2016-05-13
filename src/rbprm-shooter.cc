@@ -370,6 +370,7 @@ hpp::core::ConfigurationPtr_t RbPrmShooter::shoot () const
           size_type index = robot_->configSize() - 4;
           for (size_type i=0; i<3; ++i)
             (*config) [index + i] = -lastDirection [i];
+	  (*config) [index + 3] = 0; // theta for orientation along path
         }
         limit--;
     }

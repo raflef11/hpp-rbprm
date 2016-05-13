@@ -89,7 +89,9 @@ SET(${PROJECT_NAME}_HEADERS
     include/hpp/rbprm/planner/rbprm-roadmap.hh
     include/hpp/rbprm/planner/prm-planner.hh
     include/hpp/rbprm/projection-shooter.hh
-    include/hpp/rbprm/parabola-library.hh
+    include/hpp/rbprm/fullbodyBallistic/parabola-library.hh
+    include/hpp/rbprm/fullbodyBallistic/ballistic-interpolation.hh
+    include/hpp/rbprm/fullbodyBallistic/ballistic-path.hh
     include/utils/algorithms.h
   )
 

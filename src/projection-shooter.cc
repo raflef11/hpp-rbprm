@@ -27,7 +27,7 @@
 # include <hpp/core/configuration-shooter.hh>
 # include <hpp/core/config-validations.hh>
 # include <hpp/core/distance-between-objects.hh>
-# include <hpp/rbprm/parabola-library.hh>
+# include <hpp/rbprm/fullbodyBallistic/parabola-library.hh>
 # include <hpp/rbprm/projection-shooter.hh>
 # include <hpp/rbprm/rbprm-validation.hh>
 # include <hpp/rbprm/rbprm-validation-report.hh>

@@ -117,6 +117,8 @@ namespace stability{
                 return 1.1; // completely arbitrary: TODO
             return -std::numeric_limits<double>::max();
         }
+	hppDout (info, "true state res: " << res);
+	res = 100;
         return res ;
     }
 

@@ -317,6 +317,7 @@ namespace hpp {
                               bool contactIfFails = true, bool stableForOneContact = true,
                               const sampling::heuristic evaluate = 0)
     {
+      hppDout (info, "compute stable contacts");
       // state already stable just find collision free configuration
       if(current.stable)
       {
@@ -347,6 +348,7 @@ namespace hpp {
       for(std::vector<sampling::T_OctreeReport>::const_iterator cit = reports.begin();
           cit != reports.end(); ++cit)
       {
+	hppDout (info, "insert octree collision");
           finalSet.insert(cit->begin(), cit->end());
       }
       // pick first sample which is collision free
@@ -355,8 +357,10 @@ namespace hpp {
       core::Configuration_t moreRobust;
       double maxRob = -std::numeric_limits<double>::max();
       sampling::T_OctreeReport::const_iterator it = finalSet.begin();
+      hppDout (info, "finalSet size: " << finalSet.size ());
       for(;!found_sample && it!=finalSet.end(); ++it)
       {
+	hppDout (info, "iteration on samples");
           const sampling::OctreeReport& bestReport = *it;
           sampling::Load(*bestReport.sample_, configuration);
           body->device_->currentConfiguration(configuration);
@@ -391,8 +395,10 @@ namespace hpp {
     RbPrmProfiler& watch = getRbPrmProfiler();
     watch.start("ik");
 #endif
+    hppDout (info, "before projection test");
               if(proj->apply(configuration))
               {
+		hppDout (info, "in projection test");
 #ifdef PROFILE
     watch.stop("ik");
 #endif
@@ -402,6 +408,7 @@ namespace hpp {
 #endif
                 if(validation->validate(configuration))
                 {
+		  hppDout (info, "config is valid");
 #ifdef PROFILE
     watch.stop("collision");
 #endif
@@ -433,7 +440,13 @@ namespace hpp {
                         rotation = limb->effector_->currentTransformation().getRotation();
                         unstableContact = true;
                     }
-                }                
+                }else{
+		  core::CollisionValidationReport report;
+		  validation->validate(configuration, report);
+		  hppDout (info, "config is NOT valid");
+		  hppDout (info, "collision with:" << report.object1->name ());
+		  hppDout (info, "collision with:" << report.object2->name ());
+		}                
 #ifdef PROFILE
 else
        watch.stop("collision");
@@ -554,6 +567,7 @@ else
     hpp::rbprm::State ComputeContacts(const hpp::rbprm::RbPrmFullBodyPtr_t& body, model::ConfigurationIn_t configuration,
                                       const model::ObjectVector_t& collisionObjects, const fcl::Vec3f& direction, const double robustnessTreshold)
     {
+      hppDout (info, "compute contacts");
         const T_Limb& limbs = body->GetLimbs();
         State result;
         // save old configuration
@@ -562,13 +576,14 @@ else
         body->device_->currentConfiguration(configuration);
         body->device_->computeForwardKinematics();
         for(T_Limb::const_iterator lit = limbs.begin(); lit != limbs.end(); ++lit)
-        {
+	  {
+	    hppDout (info, "limb: " << lit->first);
             if(!ContactExistsWithinGroup(lit->second, body->limbGroups_ ,result))
-            {
+	      {
                 fcl::Vec3f normal, position;
                 ComputeStableContact(body,result, body->limbcollisionValidations_.at(lit->first), lit->first, lit->second,
                                      configuration, configuration,
-                                     result.configuration_, collisionObjects, direction, position, normal, robustnessTreshold, true, false);
+                                     result.configuration_, collisionObjects, direction, position, normal, robustnessTreshold, false, false);
             }
             result.nbContacts = result.contactNormals_.size();
         }

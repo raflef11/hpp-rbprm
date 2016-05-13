@@ -14,11 +14,14 @@
 // received a copy of the GNU Lesser General Public License along with
 // hpp-rbprm. If not, see <http://www.gnu.org/licenses/>.
 
+#include <hpp/util/debug.hh>
+# include <hpp/model/configuration.hh>
 #include <hpp/rbprm/rbprm-device.hh>
 
 namespace hpp {
   namespace model {
-
+    using model::displayConfig;
+    
       /*class rbprmexception : public std::exception
       {
       public:
@@ -72,7 +75,7 @@ namespace hpp {
         for(hpp::model::T_Rom::const_iterator cit = robotRoms_.begin();
             cit != robotRoms_.end(); ++cit)
         {
-            cit->second->currentConfiguration(configuration);
+	  cit->second->currentConfiguration(configuration);
         }
         return Device::currentConfiguration(configuration);
     }

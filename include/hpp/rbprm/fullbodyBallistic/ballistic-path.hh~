@@ -183,16 +183,14 @@ namespace hpp {
 	return os;
       }
       /// Constructor
-      ParabolaPath (const core::DevicePtr_t& robot,
-		    core::ConfigurationIn_t init,
+      ParabolaPath (const core::DevicePtr_t& robot, core::ConfigurationIn_t init,
                     core::ConfigurationIn_t end, core::value_type length,
                     core::vector_t coefficients);
 
       /// Copy constructor
       ParabolaPath (const ParabolaPath& path);
 
-      core::value_type computeLength (const core::ConfigurationIn_t q1,
-				      const core::ConfigurationIn_t q2) const;
+      core::value_type computeLength(const core::ConfigurationIn_t q1, const core::ConfigurationIn_t q2) const;
 
       core::value_type lengthFunction (const core::value_type x)const;
 

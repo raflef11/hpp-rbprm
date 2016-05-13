@@ -173,7 +173,7 @@ namespace hpp {
 
       if (fail) {
 	hppDout (info, "failed to apply 2nd constraint");
-	problem_->parabolaResults_ [2] ++;
+	problem_->parabolaResults_ [3] ++;
 	return core::PathPtr_t ();
       }
 
@@ -186,7 +186,7 @@ namespace hpp {
 
       if (fail6) {
 	hppDout (info, "failed to apply 6th constraint");
-	problem_->parabolaResults_ [2] ++;
+	problem_->parabolaResults_ [3] ++;
 	return core::PathPtr_t ();
       }
 
@@ -277,8 +277,8 @@ namespace hpp {
       ParabolaPathPtr_t pp = ParabolaPath::create (device_.lock(), q1, q2,
 						   computeLength (q1, q2,coefs),
 						   coefs);
-      bool hasCollisions = !rbPathValidation->validate (pp, false, validPart, 
-						      report, filter);
+      //bool hasCollisions = !rbPathValidation->validate (pp, false, validPart, report, filter); // DEBUG
+      bool hasCollisions = false;
       std::size_t n = 0;
       if (hasCollisions || !maxHeightRespected) {
 	problem_->parabolaResults_ [0] ++; // not increased during dichotomy
@@ -292,8 +292,7 @@ namespace hpp {
 						    x_theta_imp);
 	  pp = ParabolaPath::create (device_.lock (), q1, q2,
 				     computeLength (q1, q2, coefs), coefs);
-	  hasCollisions = !rbPathValidation->validate (pp, false, validPart,
-						     report, filter);
+	  //hasCollisions = !rbPathValidation->validate (pp, false, validPart, report, filter); // DEBUG
 	  hppDout (info, "Dichotomy iteration: " << n);
 	  n++;
 	}//while

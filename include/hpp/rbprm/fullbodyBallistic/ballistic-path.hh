@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2015 CNRS
+// Copyright (c) 2016 CNRS
 // Authors: Mylene Campana
 //
 // This file is part of hpp-core
@@ -16,8 +16,8 @@
 // hpp-core  If not, see
 // <http://www.gnu.org/licenses/>.
 
-#ifndef HPP_RBPRM_PARABOLA_PATH_HH
-# define HPP_RBPRM_PARABOLA_PATH_HH
+#ifndef HPP_RBPRM_BALLISTIC_PATH_HH
+# define HPP_RBPRM_BALLISTIC_PATH_HH
 
 # include <hpp/core/fwd.hh>
 # include <hpp/core/config.hh>
@@ -28,9 +28,9 @@ namespace hpp {
 
 
     // forward declaration of class
-    HPP_PREDEF_CLASS (ParabolaPath);
+    HPP_PREDEF_CLASS (BallisticPath);
     // Planner objects are manipulated only via shared pointers
-    typedef boost::shared_ptr <ParabolaPath> ParabolaPathPtr_t;
+    typedef boost::shared_ptr <BallisticPath> BallisticPathPtr_t;
 
 
     /// Linear interpolation between two configurations
@@ -42,36 +42,36 @@ namespace hpp {
     ///       joints, and translation part of freeflyer joints,
     ///   \li angular interpolation for unbounded rotation joints,
     ///   \li constant angular velocity for SO(3) part of freeflyer joints.
-    class ParabolaPath : public core::Path
+    class BallisticPath : public core::Path
     {
     public:
       typedef Path parent_t;
       /// Destructor
-      virtual ~ParabolaPath () throw () {}
+      virtual ~BallisticPath () throw () {}
 
       /// Create instance and return shared pointer
       /// \param device Robot corresponding to configurations
       /// \param init, end Start and end configurations of the path
       /// \param length Distance between the configurations.
-      static ParabolaPathPtr_t create (const core::DevicePtr_t& device,
+      static BallisticPathPtr_t create (const core::DevicePtr_t& device,
                                        core::ConfigurationIn_t init,
                                        core::ConfigurationIn_t end,
                                        core::value_type length,
                                        core::vector_t coefficients)
       {
-	ParabolaPath* ptr = new ParabolaPath (device, init, end, length,
+	BallisticPath* ptr = new BallisticPath (device, init, end, length,
 					      coefficients);
-	ParabolaPathPtr_t shPtr (ptr);
+	BallisticPathPtr_t shPtr (ptr);
 	ptr->init (shPtr);
 	return shPtr;
       }
 
       /// Create copy and return shared pointer
       /// \param path path to copy
-      static ParabolaPathPtr_t createCopy (const ParabolaPathPtr_t& path)
+      static BallisticPathPtr_t createCopy (const BallisticPathPtr_t& path)
       {
-	ParabolaPath* ptr = new ParabolaPath (*path);
-	ParabolaPathPtr_t shPtr (ptr);
+	BallisticPath* ptr = new BallisticPath (*path);
+	BallisticPathPtr_t shPtr (ptr);
 	ptr->initCopy (shPtr);
 	return shPtr;
       }
@@ -80,19 +80,19 @@ namespace hpp {
       /// \param path path to copy
       /// \param constraints the path is subject to
       /// <!> constraints part NOT IMPLEMENTED YET
-      static ParabolaPathPtr_t createCopy
-        (const ParabolaPathPtr_t& path, const core::ConstraintSetPtr_t& /*constraints*/)
+      static BallisticPathPtr_t createCopy
+        (const BallisticPathPtr_t& path, const core::ConstraintSetPtr_t& /*constraints*/)
       {
-	//ParabolaPath* ptr = new ParabolaPath (*path, constraints);
-	ParabolaPath* ptr = new ParabolaPath (*path);
-	ParabolaPathPtr_t shPtr (ptr);
+	//BallisticPath* ptr = new BallisticPath (*path, constraints);
+        BallisticPath* ptr = new BallisticPath (*path);
+	BallisticPathPtr_t shPtr (ptr);
 	ptr->initCopy (shPtr);
 	return shPtr;
       }
 
       /// Return a shared pointer to this
       ///
-      /// As ParabolaPath are immutable, and refered to by shared pointers,
+      /// As BallisticPath are immutable, and refered to by shared pointers,
       /// they do not need to be copied.
       virtual core::PathPtr_t copy () const
       {
@@ -166,7 +166,7 @@ namespace hpp {
 	  coefficients_(i) = coefs (i);
       }
 
-      /// Get path coefficients
+      /// Get parabola coefficients
      core::vector_t coefficients () const {
 	return coefficients_;
       }
@@ -175,7 +175,7 @@ namespace hpp {
       /// Print path in a stream
       virtual std::ostream& print (std::ostream &os) const
       {
-	os << "ParabolaPath:" << std::endl;
+	os << "BallisticPath:" << std::endl;
 	os << "interval: [ " << timeRange ().first << ", "
 	   << timeRange ().second << " ]" << std::endl;
 	os << "initial configuration: " << initial_.transpose () << std::endl;
@@ -183,31 +183,32 @@ namespace hpp {
 	return os;
       }
       /// Constructor
-      ParabolaPath (const core::DevicePtr_t& robot,
-		    core::ConfigurationIn_t init,
-                    core::ConfigurationIn_t end, core::value_type length,
-                    core::vector_t coefficients);
+      BallisticPath (const core::DevicePtr_t& robot,
+		     core::ConfigurationIn_t init,
+		     core::ConfigurationIn_t end, core::value_type length,
+		     core::vector_t coefficients);
 
       /// Copy constructor
-      ParabolaPath (const ParabolaPath& path);
+      BallisticPath (const BallisticPath& Ballisticpath);
 
       core::value_type computeLength (const core::ConfigurationIn_t q1,
 				      const core::ConfigurationIn_t q2) const;
 
       core::value_type lengthFunction (const core::value_type x)const;
 
-      void init (ParabolaPathPtr_t self)
+      void init (BallisticPathPtr_t self)
       {
 	parent_t::init (self);
 	weak_ = self;
       }
 
-      void initCopy (ParabolaPathPtr_t self)
+      void initCopy (BallisticPathPtr_t self)
       {
 	parent_t::initCopy (self);
 	weak_ = self;
       }
 
+      /// Same as parabola-path for trunk (freeflyer + internal trunk DOF)
       /// Param is the curvilinear abcissa \in [0 : pathLength]
       /// The pathLength can be computed as long as the coefficients_ are known
       /// Finally:
@@ -220,10 +221,10 @@ namespace hpp {
       core::DevicePtr_t device_;
       core::Configuration_t initial_;
       core::Configuration_t end_;
-      ParabolaPathWkPtr_t weak_;
+      BallisticPathWkPtr_t weak_;
       mutable core::vector_t coefficients_; // 4 parabola coefficients
       mutable core::value_type length_;
-    }; // class ParabolaPath
+    }; // class BallisticPath
   } //   namespace rbprm
 } // namespace hpp
-#endif // HPP_CORE_PARABOLA_PATH_HH
+#endif // HPP_CORE_BALLISTIC_PATH_HH

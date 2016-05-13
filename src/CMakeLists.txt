@@ -46,6 +46,8 @@ SET(${LIBRARY_NAME}_SOURCES
         planner/steering-method-parabola.cc ${PROJECT_SOURCE_DIR}/include/hpp/rbprm/planner/steering-method-parabola.hh
         planner/parabola-path.cc ${PROJECT_SOURCE_DIR}/include/hpp/rbprm/planner/parabola-path.hh
         projection-shooter.cc ${PROJECT_SOURCE_DIR}/include/hpp/rbprm/projection-shooter.hh
+        fullbodyBallistic/ballistic-interpolation.cc ${PROJECT_SOURCE_DIR}/include/hpp/rbprm/fullbodyBallistic/ballistic-interpolation.hh
+        fullbodyBallistic/ballistic-path.cc ${PROJECT_SOURCE_DIR}/include/hpp/rbprm/fullbodyBallistic/ballistic-path.hh
 
   )
 

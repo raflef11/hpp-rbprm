@@ -69,14 +69,8 @@ namespace hpp {
       for(std::vector<std::string>::const_iterator cit = defaultFilter_.begin();
 	  cit != defaultFilter_.end(); ++cit)
         {
-	  hppDout (info, "romValidations_ size = " << romValidations_.size ());
-	  for (T_RomValidation::const_iterator it = romValidations_.begin (); 
-	       it != romValidations_.end (); it++) {
-	    hppDout (info, "romValidations_ filters = " << (*it).first);
-      }
 	  if(romValidations_.find(*cit) == romValidations_.end())
             {
-	      hppDout (info, "defaultFilter *cit = " << *cit);
 	      std::cout << "warning: default filter impossible to match in rbprmshooter" << std::endl;
             }
         }
@@ -126,6 +120,8 @@ namespace hpp {
             if((filter.empty() || std::find(filter.begin(), filter.end(), cit->first) != filter.end())
                     && cit->second->validate(config, rbprmReportCast,false))
             {
+	      //hppDout (info, "rom validation= " << cit->first);
+	      //hppDout (info, "rom validation= " << cit->second->validate(config, rbprmReportCast,false));
                 ++filterMatch;
             }
         }

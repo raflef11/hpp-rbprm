@@ -22,7 +22,7 @@
 #include <hpp/model/joint.hh>
 #include <hpp/model/joint-configuration.hh>
 #include <hpp/core/config-projector.hh>
-#include <hpp/rbprm/planner/parabola-path.hh>
+#include <hpp/rbprm/fullbodyBallistic/ballistic-path.hh>
 #include <hpp/core/straight-path.hh>
 
 namespace hpp {
@@ -33,11 +33,11 @@ namespace hpp {
     using core::interval_t;
     using core::size_type;
 
-    ParabolaPath::ParabolaPath (const core::DevicePtr_t& device,
-                                core::ConfigurationIn_t init,
-                                core::ConfigurationIn_t end,
-                                value_type length,
-                                vector_t coefs) :
+    BallisticPath::BallisticPath (const core::DevicePtr_t& device,
+				  core::ConfigurationIn_t init,
+				  core::ConfigurationIn_t end,
+				  value_type length,
+				  vector_t coefs) :
       parent_t (interval_t (0, length), device->configSize (),
                 device->numberDof ()), device_ (device), initial_ (init),
       end_ (end), coefficients_ (vector_t(4)), length_ (length)
@@ -46,15 +46,15 @@ namespace hpp {
       coefficients (coefs);
     }
 
-    ParabolaPath::ParabolaPath (const ParabolaPath& path) :
+    BallisticPath::BallisticPath (const BallisticPath& path) :
       parent_t (path), device_ (path.device_), initial_ (path.initial_),
       end_ (path.end_), coefficients_ (path.coefficients_),
       length_ (path.length_)
     {
     }
 
-    bool ParabolaPath::impl_compute (core::ConfigurationOut_t result,
-                                     value_type param) const
+    bool BallisticPath::impl_compute (core::ConfigurationOut_t result,
+				      value_type param) const
     {
       if (param == 0 || initial_(0) == end_(0)) {
         result = initial_;
@@ -75,6 +75,8 @@ namespace hpp {
 	sin(theta)*initial_ (1);
       const value_type x_theta_end = cos(theta)*end_ (0) +
 	sin(theta)*end_ (1);
+      const value_type u_max = (x_theta_max - x_theta_initial)
+	/ (x_theta_end - x_theta_initial);
       const bool tanThetaNotDefined = (theta < M_PI/2 + 1e-2 && theta > M_PI/2 - 1e-2) || (theta > -M_PI/2 - 1e-2 && theta < -M_PI/2 + 1e-2);
 
       if (!tanThetaNotDefined) { //theta != +- pi/2
@@ -102,44 +104,65 @@ namespace hpp {
       SO3joint->configuration ()->interpolate
 	(initial_, end_, u, rank, result);
 
-      /* if robot-trunk has internal DoF (except freeflyer ones) */
-      // then linear interpolation on them
+      /* if robot has internal DoF (except freeflyer ones) */
+      // translation dimension of freeflyer hardcoded...
+      // min value (to reach for u = u_max) hardcoded...
+      // manual interpolation since joint not available with index...
       const std::size_t freeflyerDim = 3 + dimSO3;
       const bool hasInternalDof = nbConfig > ecsDim + freeflyerDim;
+      const value_type maxVal = 0; // because here initial_ = end_ ...
       if (hasInternalDof) {
 	for (core::size_type i = freeflyerDim; i<nbConfig-ecsDim; i++) {
+	  /* monopod leg interpolation
+	    if (u <= u_max) {
+	    const value_type u_prime = u / u_max;
+	    result (i) = (1 - u_prime) * initial_ (i) + u_prime * maxVal;
+	  }
+	  else {
+	    const value_type u_prime = (u - u_max) / (1 - u_max);
+	    result (i) = (1 - u_prime) * maxVal + u_prime * end_ (i);
+	    }*/
+	  /* classical interpolation for robot trunk and limbs */
 	  result (i) = (1 - u) * initial_ (i) + u * end_ (i);
 	}
       }
+
+      /* Normal vector interpolation
+	 result (nbConfig-ecsDim) = (1 - u) *
+	 initial_(nbConfig-ecsDim) + u*end_(nbConfig-ecsDim);
+	 result (nbConfig-ecsDim+1) = (1 - u) *
+	 initial_(nbConfig-ecsDim+1) + u*end_(nbConfig-ecsDim+1);
+	 result (nbConfig-ecsDim+2) = (1 - u) *
+	 initial_(nbConfig-ecsDim+2) + u*end_(nbConfig-ecsDim+2);*/
       return true;
     }
 
 
-    core::PathPtr_t ParabolaPath::extract (const interval_t& subInterval) const throw (hpp::core::projection_error)
+    core::PathPtr_t BallisticPath::extract (const interval_t& subInterval) const throw (hpp::core::projection_error)
     {
       bool success;
       core::Configuration_t q1 ((*this) (subInterval.first, success)); // straight
       core::Configuration_t q2 ((*this) (subInterval.second, success)); // straight
-      core::PathPtr_t result = rbprm::ParabolaPath::create(device_,q1,q2,computeLength(q1,q2),coefficients_);
+      core::PathPtr_t result = rbprm::BallisticPath::create(device_,q1,q2,computeLength(q1,q2),coefficients_);
       return result;
     }
 
-    core::PathPtr_t ParabolaPath::reverse () const{
+    core::PathPtr_t BallisticPath::reverse () const{
       hppDout(notice, "reverse path parabola !!!!!!!!!!!!!!!!!!!!!!!!");
       bool success;
       core::Configuration_t q1 ((*this) (length_, success));
       core::Configuration_t q2 ((*this) (0, success));
-      core::PathPtr_t result = ParabolaPath::create (device_, q1, q2, length_,
+      core::PathPtr_t result = BallisticPath::create (device_, q1, q2, length_,
                                                      coefficients_);
       return result;
     }
 
-    core::DevicePtr_t ParabolaPath::device () const
+    core::DevicePtr_t BallisticPath::device () const
     {
       return device_;
     }
 
-    value_type ParabolaPath::computeLength
+    value_type BallisticPath::computeLength
     (const core::ConfigurationIn_t q1, const core::ConfigurationIn_t q2) const {
       const int N = 6; // number -1 of interval sub-divisions
       // for N = 4, computation error ~= 1e-5.
@@ -168,7 +191,7 @@ namespace hpp {
     }
 
     // Function equivalent to sqrt( 1 + f'(x)^2 )
-    value_type ParabolaPath::lengthFunction (const value_type x)
+    value_type BallisticPath::lengthFunction (const value_type x)
     const {
       const value_type y = sqrt (1+(2*coefficients_ (0)*x+coefficients_(1))
                                  * (2*coefficients_ (0)*x+coefficients_(1)));

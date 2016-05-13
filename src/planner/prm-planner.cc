@@ -42,6 +42,7 @@ namespace hpp {
       smParabola_(rbprm::SteeringMethodParabola::create((core::ProblemPtr_t(&problem)))),
       rbRoadmap_(core::RbprmRoadmap::create (problem.distance (),problem.robot())), roadmap_(boost::dynamic_pointer_cast<core::Roadmap>(rbRoadmap_))
     {
+      hppDout(notice,"Constructor prm-planner");
     }
 
     PrmPlanner::PrmPlanner (const core::Problem& problem,
@@ -52,6 +53,7 @@ namespace hpp {
       smParabola_(rbprm::SteeringMethodParabola::create((core::ProblemPtr_t(&problem)))),
       rbRoadmap_(core::RbprmRoadmap::create (problem.distance (),problem.robot())), roadmap_(boost::dynamic_pointer_cast<core::Roadmap>(rbRoadmap_))
     {
+      hppDout(notice,"Constructor prm-planner");
     }
 
     void PrmPlanner::startSolve ()

@@ -1,0 +1,98 @@
+//
+// Copyright (c) 2016 CNRS
+// Authors: Mylene Campana, Steve Tonneau (mcampana@laas.fr)
+//
+// This file is part of hpp-rbprm.
+// hpp-rbprm is free software: you can redistribute it
+// and/or modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation, either version
+// 3 of the License, or (at your option) any later version.
+//
+// hpp-rbprm is distributed in the hope that it will be
+// useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// General Lesser Public License for more details.  You should have
+// received a copy of the GNU Lesser General Public License along with
+// hpp-core  If not, see
+// <http://www.gnu.org/licenses/>.
+
+#ifndef HPP_BALLISTIC_INTERPOLATION_HH
+# define HPP_BALLISTIC_INTERPOLATION_HH
+
+# include <hpp/rbprm/config.hh>
+# include <hpp/rbprm/rbprm-fullbody.hh>
+# include <hpp/core/path-vector.hh>
+# include <hpp/model/device.hh>
+
+# include <vector>
+
+namespace hpp {
+  namespace rbprm {
+    HPP_PREDEF_CLASS(BallisticInterpolation);
+
+    /// Interpolation class for transforming a path computed by RB-PRM into
+    /// a discrete sequence of balanced contact configurations.
+    ///
+    class BallisticInterpolation;
+    typedef boost::shared_ptr <BallisticInterpolation> BallisticInterpolationPtr_t;
+
+    class HPP_RBPRM_DLLAPI BallisticInterpolation
+    {
+    public:
+        /// Creates a smart pointer to the Interpolation class
+        ///
+        /// \param path the path returned by RB-PRM computation
+        /// \param robot the FullBody instance considered for extending the part
+        /// \param start the start full body configuration of the problem
+        /// \param end the end full body configuration of the problem
+        /// \return a pointer to the created BallisticInterpolation instance
+        static BallisticInterpolationPtr_t create (const RbPrmFullBodyPtr_t robot, const State& start, const State& end,
+                                               const core::PathVectorConstPtr_t path = core::PathVectorConstPtr_t());
+
+    public:
+        ~BallisticInterpolation();
+
+        /// Transforms the path computed by RB-PRM into
+        /// a discrete sequence of balanced contact configurations.
+        ///
+        /// \param collisionObjects the objects to consider for contact and collision avoidance
+        /// \param timeStep the discretization step of the path.
+        /// \param timeStep the discretization step of the path.
+        /// \param robustnessTreshold minimum value of the static equilibrium robustness criterion required to accept the configuration (0 by default).
+        /// \return a pointer to the created BallisticInterpolation instance
+        std::vector<State> Interpolate(const model::ObjectVector_t &collisionObjects,
+                                       const double timeStep = 0.01, const double robustnessTreshold=0.);
+
+        /// Transforms a discrete sequence of configurations into
+        /// a discrete sequence of balanced contact configurations.
+        ///
+        /// \param collisionObjects the objects to consider for contact and collision avoidance
+        /// \param timeStep the discretization step of the path.
+        /// \param robustnessTreshold minimum value of the static equilibrium robustness criterion required to accept the configuration (0 by default).
+        /// \return a pointer to the created BallisticInterpolation instance
+        std::vector<State> Interpolate(const model::ObjectVector_t &collisionObjects,
+                                       const std::vector<model::Configuration_t>& configs, const double robustnessTreshold=0.);
+
+    public:
+        const core::PathVectorConstPtr_t path_;
+        const State start_;
+        const State end_;
+
+    private:
+        RbPrmFullBodyPtr_t robot_;
+
+    protected:
+      BallisticInterpolation (const core::PathVectorConstPtr_t path, const RbPrmFullBodyPtr_t robot,const State& start, const State& end);
+
+      ///
+      /// \brief Initialization.
+      ///
+      void init (const BallisticInterpolationWkPtr_t& weakPtr);
+
+    private:
+      BallisticInterpolationWkPtr_t weakPtr_;
+    }; // class BallisticInterpolation
+  } // namespace rbprm
+} // namespace hpp
+
+#endif // HPP_BALLISTIC_INTERPOLATION_HH
