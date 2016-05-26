@@ -61,19 +61,24 @@ namespace hpp {
       }
     }
     
-    core::Configuration_t fillConfiguration (core::ConfigurationIn_t config,
-					     std::size_t configSize)
+    core::Configuration_t BallisticInterpolation::fillConfiguration
+    (core::ConfigurationIn_t config, std::size_t configSize)
     {
       core::Configuration_t result (configSize);
       std::size_t trunkSize = config.size ();
-      hppDout (info, "trunkSize= " << trunkSize);
-      for (std::size_t j = 0; j < configSize; j++) {
+      std::size_t ecsSize = robot_->device_->extraConfigSpace ().dimension ();
+      hppDout (info, "original config= " << displayConfig (config));
+      for (std::size_t j = 0; j < configSize - ecsSize; j++) {
 	if (j < trunkSize)
 	  result [j] = config [j];
 	else
 	  result [j] = 0;
       }
-      hppDout (info, "filled config= " << displayConfig(config));
+      // copy extra-configs at the end of the config
+      for (std::size_t k = 0; k < ecsSize; k++)
+	result [configSize - ecsSize + k] = config [trunkSize - ecsSize + k];
+      hppDout (info, "filled config= " << displayConfig (result));
+      return result;
     }
 
     /*std::vector<model::Configuration_t>
@@ -125,9 +130,9 @@ namespace hpp {
 	assert (q1.size () == robot->configSize ());
 	fcl::Vec3f dir;
 	dir [0] = 0; dir [1] = 0; dir [2] = 1;
-	State state1 =ComputeContacts(robot_, q1, collisionObjects, dir);
+	State state1 = ComputeContacts(robot_, q1, collisionObjects, dir);
 	core::Configuration_t q1contact = state1.configuration_;
-	State state2 =ComputeContacts(robot_, q2, collisionObjects, dir);
+	State state2 = ComputeContacts(robot_, q2, collisionObjects, dir);
 	core::Configuration_t q2contact = state2.configuration_;
 	BallisticPathPtr_t bp = Interpolate (q1contact, q2contact,
 					     subpath->length (),

@@ -59,8 +59,6 @@ namespace hpp {
 
       /// One step of extension.
       virtual void oneStep ();
-
-      virtual void startSolve ();
       
       // disabled during testing
       virtual void tryDirectPath();

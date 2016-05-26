@@ -93,6 +93,10 @@ namespace hpp {
       ///
       void init (const BallisticInterpolationWkPtr_t& weakPtr);
 
+      /// Fill current config with 0 and copy ECS part
+      core::Configuration_t fillConfiguration (core::ConfigurationIn_t config,
+					       std::size_t configSize);
+
     private:
       RbPrmFullBodyPtr_t robot_; // device of fullbody
       BallisticInterpolationWkPtr_t weakPtr_;

@@ -372,7 +372,7 @@ namespace hpp {
               const fcl::Matrix3f alignRotation = tools::GetRotationMatrix(z,normal);
               rotation = alignRotation * limb->effector_->currentTransformation().getRotation();
               // Add constraints to resolve Ik
-              core::ConfigProjectorPtr_t proj = core::ConfigProjector::create(body->device_,"proj", 1e-4, 20);
+              core::ConfigProjectorPtr_t proj = core::ConfigProjector::create(body->device_,"proj", 1e-2, 30); // DEBUG, initially: 1e-4, 20
               // get current normal orientation
               LockJointRec(limb->limb_->name(), body->device_->rootJoint(), proj);
               proj->add(core::NumericalConstraint::create (constraints::Position::create(body->device_,
@@ -581,9 +581,7 @@ else
             if(!ContactExistsWithinGroup(lit->second, body->limbGroups_ ,result))
 	      {
                 fcl::Vec3f normal, position;
-                ComputeStableContact(body,result, body->limbcollisionValidations_.at(lit->first), lit->first, lit->second,
-                                     configuration, configuration,
-                                     result.configuration_, collisionObjects, direction, position, normal, robustnessTreshold, false, false);
+                ComputeStableContact(body,result,body->limbcollisionValidations_.at(lit->first), lit->first, lit->second, configuration, configuration, result.configuration_, collisionObjects, direction, position, normal, robustnessTreshold, false, false);
             }
             result.nbContacts = result.contactNormals_.size();
         }
