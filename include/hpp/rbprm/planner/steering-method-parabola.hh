@@ -182,6 +182,13 @@ namespace hpp {
       mutable bool initialConstraint_; // true if the constraint at the initial point are respected (5° for first cone, 1° and 2° constraints)
       mutable value_type alpha_0_max_;
       mutable value_type alpha_0_min_;
+
+      // Reminder for parabola-results = nb of fails from the following causes:
+      // [0] collision or out of configs-bounds
+      // [1] one 3D cone is not intersecting the vertical plane
+      // [2] takeoff/landing in cone not OK
+      // [3] takeoff/landing velocity bound not OK
+
     }; // SteeringMethodParabola
     /// \}
   } // namespace rbprm

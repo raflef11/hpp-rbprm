@@ -143,7 +143,7 @@ namespace hpp {
     RbPrmFullBody::RbPrmFullBody (const model::DevicePtr_t& device)
         : device_(device)
         , collisionValidation_(core::CollisionValidation::create(device))
-        , weakPtr_()
+        , weakPtr_(), noStability_ (true)
     {
         // NOTHING
     }
@@ -286,7 +286,7 @@ namespace hpp {
       NO_CONTACT = 0,
       STABLE_CONTACT = 1,
       UNSTABLE_CONTACT = 2
-    };
+      };
 
     bool ContactExistsWithinGroup(const hpp::rbprm::RbPrmLimbPtr_t& limb,
                                   const hpp::rbprm::RbPrmFullBody::T_LimbGroup& limbGroups,
@@ -413,6 +413,7 @@ namespace hpp {
     watch.stop("collision");
 #endif
                     // test stability of new configuration
+                    bool noStability = body->noStability_;
                     body->device_->currentConfiguration(configuration);
                     body->device_->computeForwardKinematics();
                     State tmp (current);
@@ -423,6 +424,11 @@ namespace hpp {
                     tmp.configuration_ = configuration;
                     ++tmp.nbContacts;
                     double robustness = stability::IsStable(body,tmp);
+		    if (noStability) {
+		      hppDout (info, "stability bypassed");
+		      robustness = 400; // hardcoded to bypass stability
+		    } else
+		      hppDout (info, "stability computed");
                     if((tmp.nbContacts == 1 && !stableForOneContact) || robustness>=robustnessTreshold)
                     {
                         maxRob = std::max(robustness, maxRob);
@@ -487,6 +493,7 @@ else
           if(!found_sample)
           {
               ComputeCollisionFreeConfiguration(body, current, validation, limb, configuration,robustnessTreshold,false);
+	      hppDout (info, "sample not found, coll-free config");
           }
       }
       if(found_sample || unstableContact)
@@ -497,6 +504,7 @@ else
           current.contactRotation_[limbId] = rotation;
           current.configuration_ = configuration;
           current.contactOrder_.push(limbId);
+	  hppDout (info, "sample found or unstable");
       }
       return status;
     }

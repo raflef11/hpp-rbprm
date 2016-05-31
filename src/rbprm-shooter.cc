@@ -175,7 +175,8 @@ namespace
                                             const ObjectVector_t& geometries,
                                             const std::vector<std::string>& filter,
                                             const std::map<std::string, rbprm::NormalFilter>& normalFilters,
-                                            const std::size_t shootLimit, const std::size_t displacementLimit)
+                                            const std::size_t shootLimit, const std::size_t displacementLimit,
+					    const std::size_t nbFilterMatch)
     {
        /* unsigned int seed = (unsigned int)(time(NULL));
         srand (seed);
@@ -183,7 +184,7 @@ namespace
 */
         srand (0);
 
-        RbPrmShooter* ptr = new RbPrmShooter (robot, geometries, filter, normalFilters, shootLimit, displacementLimit);
+        RbPrmShooter* ptr = new RbPrmShooter (robot, geometries, filter, normalFilters, shootLimit, displacementLimit, nbFilterMatch);
         RbPrmShooterPtr_t shPtr (ptr);
         ptr->init (shPtr);
         return shPtr;
@@ -201,21 +202,23 @@ namespace
         seRotationtLimits(eulerSo3_, limitszyx);
     }
 
-// TODO: outward
+    // TODO: outward
 
     RbPrmShooter::RbPrmShooter (const model::RbPrmDevicePtr_t& robot,
-                              const ObjectVector_t& geometries,
-                              const std::vector<std::string>& filter,
-                              const std::map<std::string, rbprm::NormalFilter>& normalFilters,
-                              const std::size_t shootLimit,
-                              const std::size_t displacementLimit)
-    : shootLimit_(shootLimit)
-    , displacementLimit_(displacementLimit)
-    , filter_(filter)
-    , robot_ (robot)
-    , validator_(rbprm::RbPrmValidation::create(robot_, filter, normalFilters))
-    , eulerSo3_(initSo3())
+				const ObjectVector_t& geometries,
+				const std::vector<std::string>& filter,
+				const std::map<std::string, rbprm::NormalFilter>& normalFilters,
+				const std::size_t shootLimit,
+				const std::size_t displacementLimit,
+				const std::size_t nbFilterMatch)
+      : shootLimit_(shootLimit)
+      , displacementLimit_(displacementLimit)
+      , filter_(filter)
+      , robot_ (robot)
+      , validator_(rbprm::RbPrmValidation::create(robot_, filter, normalFilters, nbFilterMatch))
+      , eulerSo3_(initSo3())
     {
+      hppDout (info, "constructor RbPrmShooter");
       for (std::size_t i = 0; i < filter_.size (); i++) {
       hppDout (info, "rbShooter filter= " << filter_[i]);
     }

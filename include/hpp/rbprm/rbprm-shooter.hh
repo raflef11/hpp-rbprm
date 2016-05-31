@@ -60,13 +60,15 @@ namespace hpp {
         /// \param displacementLimit maximum number of local displacements allowed for a shot configuration to try to verify
         /// the reachability condition.
         /// \return a pointer to an instance of RbPrmShooter
-        static HPP_RBPRM_DLLAPI RbPrmShooterPtr_t create (const model::RbPrmDevicePtr_t& robot,
-                                         const core::ObjectVector_t &geometries,
-                                         const std::vector<std::string>& filter = std::vector<std::string>(),
-                                         const std::map<std::string, rbprm::NormalFilter>& normalFilters = std::map<std::string, rbprm::NormalFilter>(),
-                                         const std::size_t shootLimit = 10000,
-                                         const std::size_t displacementLimit = 100);
-    virtual core::ConfigurationPtr_t shoot () const;
+        static HPP_RBPRM_DLLAPI RbPrmShooterPtr_t
+	  create (const model::RbPrmDevicePtr_t& robot,
+		  const core::ObjectVector_t &geometries,
+		  const std::vector<std::string>& filter = std::vector<std::string>(),
+		  const std::map<std::string, rbprm::NormalFilter>& normalFilters = std::map<std::string, rbprm::NormalFilter>(),
+		  const std::size_t shootLimit = 10000,
+		  const std::size_t displacementLimit = 100,
+		  const std::size_t nbFilterMatch = 0);
+	virtual core::ConfigurationPtr_t shoot () const;
 
 
     public:
@@ -93,7 +95,8 @@ namespace hpp {
                   const std::vector<std::string>& filter,
                   const std::map<std::string, rbprm::NormalFilter>& normalFilters,
                   const std::size_t shootLimit = 10000,
-                  const std::size_t displacementLimit = 100);
+                  const std::size_t displacementLimit = 100,
+		  const std::size_t nbFilterMatch = 0);
 
     void init (const RbPrmShooterPtr_t& self);
 

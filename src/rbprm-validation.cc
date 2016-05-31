@@ -54,18 +54,24 @@ namespace hpp {
   namespace rbprm {
 
     RbPrmValidationPtr_t RbPrmValidation::create
-    (const model::RbPrmDevicePtr_t& robot, const std::vector<std::string>& filter, const std::map<std::string, rbprm::NormalFilter>& normalFilters)
+    (const model::RbPrmDevicePtr_t& robot, const std::vector<std::string>& filter, const std::map<std::string, rbprm::NormalFilter>& normalFilters, std::size_t nbFilterMatch)
     {
-      RbPrmValidation* ptr = new RbPrmValidation (robot, filter, normalFilters);
+      hppDout (info, "create RbprmValidation");
+      if (nbFilterMatch == 0)
+	nbFilterMatch = filter.size ();
+      hppDout (info, "nbFilterMatch= " << nbFilterMatch);
+      RbPrmValidation* ptr = new RbPrmValidation (robot, filter, normalFilters, nbFilterMatch);
       return RbPrmValidationPtr_t (ptr);
     }
 
     RbPrmValidation::RbPrmValidation (const model::RbPrmDevicePtr_t& robot
-                                      , const std::vector<std::string>& filter, const std::map<std::string, rbprm::NormalFilter>& normalFilters)
+                                      , const std::vector<std::string>& filter, const std::map<std::string, rbprm::NormalFilter>& normalFilters,
+				      const std::size_t nbFilterMatch)
       : trunkValidation_(tuneFclValidation(robot))
       , romValidations_(createRomValidations(robot, normalFilters))
-      , defaultFilter_(filter)
+      , defaultFilter_(filter), nbFilterMatch_ (nbFilterMatch)
     {
+      hppDout (info, "nbFilterMatch= " << nbFilterMatch);
       for(std::vector<std::string>::const_iterator cit = defaultFilter_.begin();
 	  cit != defaultFilter_.end(); ++cit)
         {
@@ -122,17 +128,25 @@ namespace hpp {
             {
 	      //hppDout (info, "rom validation= " << cit->first);
 	      //hppDout (info, "rom validation= " << cit->second->validate(config, rbprmReportCast,false));
-                ++filterMatch;
+	      ++filterMatch;
             }
         }
-        if(filterMatch >= filter.size())
+	//if(filterMatch >= filter.size()) { // all filters must match
+	//hppDout (info, "nbFilterMatch_= " << nbFilterMatch_);
+        if(filterMatch >= nbFilterMatch_) { // just nbFilterMatch
+	  //hppDout (info, "number of filters that match: " << filterMatch);
+	  //hppDout (info, "enough filters, RoM is valid");
           rbprmReport->romsValid=true;
-        else
+	}
+        else {
+	  //hppDout (info, "number of filters that match: " << filterMatch);
+	  //hppDout (info, "not enough filters, RoM is invalid");
           rbprmReport->romsValid=false;
+	}
         validationReport = rbprmReport;
         //std::string tr = (filterMatch >= filter.size()) ? "true" : "false";
         //hppDout(notice," validate romes ?" << filterMatch << " " <<  tr );
-        return filterMatch >= filter.size();
+        return filterMatch >= nbFilterMatch_;
     }
 
     bool RbPrmValidation::validateRoms(const core::Configuration_t& config, ValidationReportPtr_t& validationReport,bool throwIfInValid)

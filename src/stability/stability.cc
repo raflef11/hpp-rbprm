@@ -118,7 +118,7 @@ namespace stability{
             return -std::numeric_limits<double>::max();
         }
 	hppDout (info, "true state res: " << res);
-	res = 400; // hardcoded to bypass stability
+	//res = 400; // hardcoded to bypass stability
         return res ;
     }
 

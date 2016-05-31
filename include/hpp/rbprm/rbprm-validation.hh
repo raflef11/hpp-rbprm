@@ -44,7 +44,7 @@ namespace hpp {
     public:
       static RbPrmValidationPtr_t create (const model::RbPrmDevicePtr_t& robot,
                                           const std::vector<std::string>& filter = std::vector<std::string>(),
-                                          const std::map<std::string, rbprm::NormalFilter>& normalFilters = std::map<std::string, rbprm::NormalFilter>());
+                                          const std::map<std::string, rbprm::NormalFilter>& normalFilters = std::map<std::string, rbprm::NormalFilter>(), std::size_t nbFilterMatch = 0);
 
       /// Compute whether the configuration is valid
       ///
@@ -151,6 +151,12 @@ namespace hpp {
       /// \return whether the whole config is valid.
       bool validateRoms(const core::Configuration_t& config,const std::vector<std::string>& filter, bool throwIfInValid= false);
 
+      /// Set the nbFilterMatch (number of filters that have to match 
+      /// for validation)
+      virtual void setSizeParameter(const std::size_t nbFilterMatch) {
+	nbFilterMatch_ = nbFilterMatch;
+      }
+
     public:
       /// CollisionValidation for the trunk
       const core::CollisionValidationPtr_t trunkValidation_;
@@ -159,9 +165,14 @@ namespace hpp {
       const std::vector<std::string> defaultFilter_;
 
     protected:
+      /// Constructor
       RbPrmValidation (const model::RbPrmDevicePtr_t& robot,
                        const std::vector<std::string>& filter,
-                       const std::map<std::string, rbprm::NormalFilter>& normalFilters);
+                       const std::map<std::string, rbprm::NormalFilter>& normalFilters, const std::size_t nbFilterMatch);
+
+    private:
+      std::size_t nbFilterMatch_; // number of filters that have to match
+
     }; // class RbPrmValidation
     /// \}
   } // namespace rbprm

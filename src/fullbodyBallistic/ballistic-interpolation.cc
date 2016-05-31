@@ -120,6 +120,7 @@ namespace hpp {
       hppDout (info, "number of sub-paths: " << subPathNumber);
       core::PathVectorPtr_t newPath = core::PathVector::create 
 	(robot->configSize (), robot->numberDof ());
+      robot_->noStability_ = true; // disable stability for waypoints
 
       for (std::size_t i=0; i<subPathNumber; i++) {
 	core::PathPtr_t subpath = path_->pathAtRank (i);

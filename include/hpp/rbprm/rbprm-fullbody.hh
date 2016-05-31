@@ -88,6 +88,7 @@ namespace hpp {
         const rbprm::T_Limb& GetLimbs() {return limbs_;}
         const T_LimbGroup& GetGroups() {return limbGroups_;}
         const model::DevicePtr_t device_;
+	bool noStability_;
 
     private:
         core::CollisionValidationPtr_t collisionValidation_;
@@ -111,8 +112,8 @@ namespace hpp {
                                         const model::ObjectVector_t& collisionObjects, const fcl::Vec3f& direction, const double robustnessTreshold);
 
       friend hpp::rbprm::State HPP_RBPRM_DLLAPI ComputeContacts(const hpp::rbprm::State& previous, const hpp::rbprm::RbPrmFullBodyPtr_t& body, model::ConfigurationIn_t configuration, model::ConfigurationIn_t nextconfiguration,
-                                        const model::ObjectVector_t& collisionObjects, const fcl::Vec3f& direction, bool& contactMaintained, bool& multipleBreaks, const bool allowFailure, const double robustnessTreshold);
-    }; // class RbPrmDevice
+								const model::ObjectVector_t& collisionObjects, const fcl::Vec3f& direction, bool& contactMaintained, bool& multipleBreaks, const bool allowFailure, const double robustnessTreshold);
+    }; // class RbPrmFullbody
 
     /// Generates a balanced contact configuration, considering the
     /// given current configuration of the robot, and a direction of motion.
