@@ -27,10 +27,10 @@ namespace hpp {
   namespace rbprm {
     /// \addtogroup steering_method
     /// \{
-
+    
     using core::value_type;
     using core::vector_t;
-
+    
     // forward declaration of class
     HPP_PREDEF_CLASS (SteeringMethodParabola);
     // Planner objects are manipulated only via shared pointers
@@ -53,17 +53,23 @@ namespace hpp {
       static SteeringMethodParabolaPtr_t createCopy
 	(const SteeringMethodParabolaPtr_t& other)
       {
-	SteeringMethodParabola* ptr = new SteeringMethodParabola (*other);
-	SteeringMethodParabolaPtr_t shPtr (ptr);
-	ptr->init (shPtr);
-	return shPtr;
+        SteeringMethodParabola* ptr = new SteeringMethodParabola (*other);
+        SteeringMethodParabolaPtr_t shPtr (ptr);
+        ptr->init (shPtr);
+        return shPtr;
       }
       /// Copy instance and return shared pointer
       virtual core::SteeringMethodPtr_t copy () const
       {
-	return createCopy (weak_.lock ());
+        return createCopy (weak_.lock ());
       }
-
+      
+      core::PathPtr_t operator() (core::ConfigurationIn_t q1,
+                            core::ConfigurationIn_t q2) const
+      {
+        return impl_compute (q1, q2);
+      }
+      
       /// create a path between two configurations
       virtual core::PathPtr_t impl_compute (core::ConfigurationIn_t q1,
 					    core::ConfigurationIn_t q2) const;
@@ -116,8 +122,8 @@ namespace hpp {
       /// Store weak pointer to itself
       void init (SteeringMethodParabolaWkPtr_t weak)
       {
-	SteeringMethod::init (weak);
-	weak_ = weak;
+        SteeringMethod::init (weak);
+        weak_ = weak;
       }
 
     private:
@@ -180,6 +186,8 @@ namespace hpp {
       value_type Dalpha_; // alpha increment
       mutable std::size_t nLimit_; // number of Dichotomies applied
       mutable bool initialConstraint_; // true if the constraint at the initial point are respected (5° for first cone, 1° and 2° constraints)
+      mutable value_type alpha_1_plus_;
+      mutable value_type alpha_1_minus_;
       mutable value_type alpha_0_max_;
       mutable value_type alpha_0_min_;
 

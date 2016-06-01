@@ -170,7 +170,14 @@ namespace hpp {
      core::vector_t coefficients () const {
 	return coefficients_;
       }
-
+     
+     
+     double alpha_;    
+     double alphaMin_;
+     double alphaMax_; 
+     double Xtheta_;   
+     double Z_;        
+     
     protected:
       /// Print path in a stream
       virtual std::ostream& print (std::ostream &os) const
@@ -215,6 +222,7 @@ namespace hpp {
       /// config(1) = coefs(0)*x(param)^2 + coefs(1)*x(param) + coefs(2)
       virtual bool impl_compute (core::ConfigurationOut_t result,
                                  core::value_type param) const;
+      
 
     private:
       core::DevicePtr_t device_;

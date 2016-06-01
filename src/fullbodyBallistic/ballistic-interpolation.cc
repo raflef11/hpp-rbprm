@@ -130,6 +130,7 @@ namespace hpp {
 						      robot->configSize ());
 	assert (q1.size () == robot->configSize ());
 	fcl::Vec3f dir;
+	// TODO: Force dir (for EFORT..) is given by the velocities difference
 	dir [0] = 0; dir [1] = 0; dir [2] = 1;
 	State state1 = ComputeContacts(robot_, q1, collisionObjects, dir);
 	core::Configuration_t q1contact = state1.configuration_;

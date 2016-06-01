@@ -16,29 +16,31 @@
 // hpp-core  If not, see
 // <http://www.gnu.org/licenses/>.
 
-#ifndef HPP_RBPRM_STABILITY_HH
-# define HPP_RBPRM_STABILITY_HH
+#ifndef HPP_ANALYSIS_HH
+# define HPP_ANALYSIS_HH
 
-#include <hpp/model/device.hh>
-#include <hpp/rbprm/rbprm-state.hh>
+#include <hpp/rbprm/sampling/sample.hh>
+#include <hpp/rbprm/sampling/sample-db.hh>
 #include <hpp/rbprm/rbprm-fullbody.hh>
 
 #include <map>
-#include <memory>
+
 
 namespace hpp {
 
   namespace rbprm {
-  namespace stability{
+  namespace sampling{
 
-    /// Using the polytope computation of the gravito inertial wrench cone, performs
-    /// a static equilibrium test on the robot.
-    ///
-    /// \param fullbody The considered robot for static equilibrium
-    /// \param state The current State of the robots, in terms of contact creation
-    /// \return Whether the configuration is statically balanced
-    double IsStable(const RbPrmFullBodyPtr_t fullbody, State& state);
-  } // namespace stability
+  struct HPP_RBPRM_DLLAPI AnalysisFactory
+  {
+       AnalysisFactory(hpp::rbprm::RbPrmFullBodyPtr_t device);
+      ~AnalysisFactory();
+
+       bool AddAnalysis(const std::string& name, const evaluate func);
+       T_evaluate evaluate_;
+       rbprm::RbPrmFullBodyPtr_t device_;
+  };
+  } // namespace sampling
 } // namespace rbprm
 } // namespace hpp
-#endif // HPP_RBPRM_STABILITY_HH
+#endif // HPP_ANALYSIS_HH

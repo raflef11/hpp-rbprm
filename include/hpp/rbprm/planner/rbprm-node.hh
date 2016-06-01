@@ -54,11 +54,48 @@ namespace hpp {
       void giwc(const polytope::ProjectedCone* giwc){giwc_ = giwc;}
       
       const polytope::ProjectedCone* giwc(){return giwc_;}
+      
+      void alpha(double alpha){alpha_=alpha;}
+      
+      double alpha(){return alpha_;}
+      
+      void alphaMin(double alphaMin){alphaMin_=alphaMin;}
+      
+      double alphaMin(){return alphaMin_;}
+      
+      void alphaMax(double alphaMax){alphaMax_=alphaMax;}
+      
+      double alphaMax(){return alphaMax_;}
+      
+      double xTheta(){return Xtheta_;}
+      
+      void xTheta(double xTheta){Xtheta_ = xTheta;}
+      
+      double Z(){return Z_;}
+      
+      void Z(double Z){Z_ = Z;}
+      
+      double v0(double alpha0){
+        return sqrt((9.81*Xtheta_*Xtheta_)/(2*Xtheta_*tan(alpha0) - Z_));
+      }
+      
+      void setAlphas(double alpha, double alphaMin, double alphaMax){
+        alpha_=alpha;
+        alphaMin_=alphaMin;
+        alphaMax_=alphaMax;
+      }
+      
 
     private:
       fcl::Vec3f normal_;
       RbprmValidationReportPtr_t collisionReport_;
       const polytope::ProjectedCone* giwc_;
+      double alpha_;    // for parent node ! not for this node
+      double alphaMin_; // for parent node ! not for this node
+      double alphaMax_; // for parent node ! not for this node
+      double Xtheta_;   // for parent node ! not for this node
+      double Z_;        // for parent node ! not for this node
+      
 
     }; // class
 

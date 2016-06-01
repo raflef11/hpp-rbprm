@@ -327,10 +327,10 @@ namespace hpp {
       const value_type x_theta_0 = cos(theta) * x_0 +  sin(theta) * y_0;
       const value_type x_theta_imp = cos(theta) * x_imp +  sin(theta) * y_imp;
       
-      if(alpha_0_min_ < 0 )
-        alpha_0_min_ = 0; //otherwise we go in the wrong direction
-      value_type interval = (alpha_0_max_-alpha_0_min_)/2.;  // according to friction cone computed in compute_3d_path
-      value_type alpha = (((value_type) rand()/RAND_MAX) * interval) + alpha_0_min_;
+      if(alpha_1_minus_ < 0 )
+        alpha_1_minus_ = 0; //otherwise we go in the wrong direction
+      value_type interval = (alpha_1_plus_-alpha_1_minus_)/2.;  // according to friction cone computed in compute_3d_path
+      value_type alpha = (((value_type) rand()/RAND_MAX) * interval) + alpha_1_minus_;
       value_type v = (((value_type) rand()/RAND_MAX) * V0max_);
       *alpha0 = alpha;
       *v0 = v;
@@ -385,7 +385,6 @@ namespace hpp {
       hppDout (notice, "Create path between : goal : " << displayConfig(*qnew));
       return pp;
     }
-
 
     bool SteeringMethodParabola::second_constraint (const value_type& X,
 						    const value_type& Y,
