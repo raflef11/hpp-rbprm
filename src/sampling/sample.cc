@@ -45,7 +45,8 @@ fcl::Vec3f ComputeEffectorPosition(const model::JointPtr_t limb, const model::Jo
 
 Eigen::MatrixXd Jacobian(const model::JointPtr_t limb, const model::JointPtr_t effector)
 {
-    return effector->jacobian().block(0,limb->rankInVelocity(),6, effector->rankInVelocity() - limb->rankInVelocity() + 1);
+  //return effector->jacobian().block(0,limb->rankInVelocity(),6, effector->rankInVelocity() - limb->rankInVelocity() + 1); // PB size ??
+  return effector->jacobian().block(0,limb->rankInVelocity(),6, effector->rankInVelocity() - limb->rankInVelocity());
 }
 
 

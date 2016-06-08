@@ -161,22 +161,23 @@ namespace hpp {
 
       /// Set the three parabola coefficients
       void coefficients (core::vector_t coefs) const {
-	assert (coefs.size () == 4);
-	for (std::size_t i = 0; i < 4; i++)
+	for (std::size_t i = 0; i < coefs.size (); i++)
 	  coefficients_(i) = coefs (i);
       }
 
       /// Get path coefficients
-     core::vector_t coefficients () const {
+      core::vector_t coefficients () const {
 	return coefficients_;
       }
      
-     
-     double alpha_;    
-     double alphaMin_;
-     double alphaMax_; 
-     double Xtheta_;   
-     double Z_;        
+      core::value_type alpha_; // chosen alpha in intervalle
+      core::value_type alphaMin_; // min bound of alpha intervalle
+      core::value_type alphaMax_; // max bound of alpha intervalle
+      core::value_type Xtheta_;   
+      core::value_type Z_;
+      core::vector_t V0_; // initial velocity
+      core::vector_t Vimp_; // final velocity
+      
      
     protected:
       /// Print path in a stream

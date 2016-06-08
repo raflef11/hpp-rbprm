@@ -263,7 +263,9 @@ namespace
                 double weight = TriangleArea(tri);
                 sum += weight;
                 weights_.push_back(weight);
-                fcl::Vec3f normal = (tri.p2 - tri.p1).cross(tri.p3 - tri.p1);
+                //fcl::Vec3f normal = (tri.p2 - tri.p1).cross(tri.p3 - tri.p1); // steve/pierre -> conflict with lastDirection in shoot()
+		//hppDout (info, "normal_test" << normal_test);
+		fcl::Vec3f normal = (tri.p3 - tri.p1).cross(tri.p2 - tri.p1);
                 normal.normalize();
                 triangles_.push_back(std::make_pair(normal,tri));
             }
@@ -346,7 +348,7 @@ hpp::core::ConfigurationPtr_t RbPrmShooter::shoot () const
                         Translate(robot_, config, -lastDirection *
                                   1 * ((double) rand() / (RAND_MAX)));
                     }
-                    found = validator_->validate(*config, unusedreport, filter_);
+                    found = validator_->validate(*config, unusedreport, filter_); 
                 }
                 if(!found) break;
             }
@@ -359,7 +361,6 @@ hpp::core::ConfigurationPtr_t RbPrmShooter::shoot () const
                 //get normal from collision tri
 
                 lastDirection = triangles_[boost::dynamic_pointer_cast<CollisionValidationReport>(report)->result.getContact(0).b2].first;
-		//hppDout (info, "lastDirection = " << lastDirection);
                 Translate(robot_,config, -lastDirection *
                           (std::abs(boost::dynamic_pointer_cast<CollisionValidationReport>(report)->result.getContact(0).penetration_depth) +0.03));
 
@@ -386,7 +387,7 @@ hpp::core::ConfigurationPtr_t RbPrmShooter::shoot () const
         }
         // save the normal (code from Mylène)
         if(extraDim >= 3 ){
-          size_type index = robot_->configSize() - 4;
+          size_type index = robot_->configSize() - extraDim;
           for (size_type i=0; i<3; ++i)
             (*config) [index + i] = -lastDirection [i];
 	  (*config) [index + 3] = 0; // theta for orientation along path

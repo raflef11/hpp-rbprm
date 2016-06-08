@@ -46,7 +46,6 @@ namespace hpp {
     BallisticPlanner::BallisticPlanner (const core::Problem& problem):
       PathPlanner (problem),
       configurationShooter_ (problem.configurationShooter()),
-      qProj_ (problem.robot ()->configSize ()),
       smParabola_(rbprm::SteeringMethodParabola::create((core::ProblemPtr_t(&problem)))),
       rbRoadmap_(core::RbprmRoadmap::create (problem.distance (),problem.robot())), roadmap_(boost::dynamic_pointer_cast<core::Roadmap>(rbRoadmap_)),
       fullRobot_ (RbPrmFullBody::create(problem.robot ()))
@@ -55,12 +54,12 @@ namespace hpp {
     }
 
     BallisticPlanner::BallisticPlanner (const core::Problem& problem,
-			    const core::RoadmapPtr_t& roadmap) :
+					const core::RoadmapPtr_t& roadmap) :
       PathPlanner (problem, roadmap),
       configurationShooter_ (problem.configurationShooter()),
-      qProj_ (problem.robot ()->configSize ()),
       smParabola_(rbprm::SteeringMethodParabola::create((core::ProblemPtr_t(&problem)))),
-      rbRoadmap_(core::RbprmRoadmap::create (problem.distance (),problem.robot())), roadmap_(roadmap), fullRobot_ (RbPrmFullBody::create(problem.robot ()))
+      rbRoadmap_(boost::dynamic_pointer_cast<core::RbprmRoadmap>(roadmap)),
+      roadmap_(roadmap), fullRobot_ (RbPrmFullBody::create(problem.robot ()))
     {
       hppDout(notice,"Constructor ballistic-planner with Roadmap");
     }
@@ -234,6 +233,7 @@ namespace hpp {
 	  core::CollisionObjectPtr_t obj2 = it->second->object2;
 	  hppDout(notice,"~~ collision between : "<<obj1->name() << " and "<<obj2->name());
 	  fcl::CollisionResult result = it->second->result;
+	  // result is the object colliding with the current ROM
 	  /* size_t numContact =result.numContacts();
 	     hppDout(notice,"~~ number of contact : "<<numContact);
 	     std::ostringstream ss;
@@ -293,7 +293,7 @@ namespace hpp {
 	  posContact.segment<3>(indexRom*3) = center;
 	  //std::cout<<center<<std::endl<<std::endl;
 	  polytope::rotation_t rot; 
-	  normal = -result.getContact(0).normal;
+	  normal = -result.getContact(0).normal; // of contact surface
 	  hppDout(notice," !!! normal for GIWC : "<<normal);
 	  // compute tangent vector : 
 	  tangent0 = normal.cross(polytope::vector3_t(1,0,0));
@@ -319,7 +319,13 @@ namespace hpp {
         nu(k) = 0.5;
       }
       // save giwc in node structure
-      node->giwc(polytope::U_stance(rotContact,posContact,nu,x,y));
+      const polytope::ProjectedCone* giwc =
+	polytope::U_stance (rotContact, posContact, nu, x, y);
+      node->giwc(giwc);
+      // TODO: modify ECS part of config HERE
+      core::matrix_t v = giwc->v;
+      hppDout (info, "v GIWC = " << v);
+      hppDout (info, "v GIWC size = " << v.size ());
     }// computeGIWC
 
   } // namespace core

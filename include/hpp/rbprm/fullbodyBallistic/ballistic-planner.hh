@@ -74,14 +74,14 @@ namespace hpp {
         return roadmap_;
       }
 
-      const core::RbprmRoadmapPtr_t& rbprmRoadmap() const {
+      virtual const core::RbprmRoadmapPtr_t& rbprmRoadmap() const {
         return rbRoadmap_;
       }
 
     protected:
       /// Constructor with roadmap
       BallisticPlanner (const core::Problem& problem,
-		  const core::RoadmapPtr_t& roadmap);
+			const core::RoadmapPtr_t& roadmap);
 
       /// Constructor
       BallisticPlanner (const core::Problem& problem);
@@ -109,7 +109,6 @@ namespace hpp {
       void computeGIWC(const core::RbprmNodePtr_t x);
 
       core::ConfigurationShooterPtr_t configurationShooter_;
-      mutable core::Configuration_t qProj_;
       BallisticPlannerWkPtr_t weakPtr_;
       SteeringMethodParabolaPtr_t smParabola_;
       const core::RbprmRoadmapPtr_t rbRoadmap_;

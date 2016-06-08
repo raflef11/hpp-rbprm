@@ -40,7 +40,8 @@ namespace hpp {
                                 vector_t coefs) :
       parent_t (interval_t (0, length), device->configSize (),
                 device->numberDof ()), device_ (device), initial_ (init),
-      end_ (end), coefficients_ (vector_t(4)), length_ (length)
+      end_ (end), coefficients_ (vector_t(4)), length_ (length),
+      V0_ (vector_t(3)), Vimp_ (vector_t(3))
     {
       assert (device);
       coefficients (coefs);
@@ -49,7 +50,7 @@ namespace hpp {
     ParabolaPath::ParabolaPath (const ParabolaPath& path) :
       parent_t (path), device_ (path.device_), initial_ (path.initial_),
       end_ (path.end_), coefficients_ (path.coefficients_),
-      length_ (path.length_)
+      length_ (path.length_), V0_ (path.V0_), Vimp_ (path.Vimp_)
     {
     }
 
@@ -120,7 +121,9 @@ namespace hpp {
       bool success;
       core::Configuration_t q1 ((*this) (subInterval.first, success)); // straight
       core::Configuration_t q2 ((*this) (subInterval.second, success)); // straight
-      core::PathPtr_t result = rbprm::ParabolaPath::create(device_,q1,q2,computeLength(q1,q2),coefficients_);
+      ParabolaPathPtr_t result = rbprm::ParabolaPath::create(device_,q1,q2,computeLength(q1,q2),coefficients_);
+      (*result).V0_ = (*this).V0_;
+      (*result).Vimp_ = (*this).Vimp_;
       return result;
     }
 
@@ -129,8 +132,10 @@ namespace hpp {
       bool success;
       core::Configuration_t q1 ((*this) (length_, success));
       core::Configuration_t q2 ((*this) (0, success));
-      core::PathPtr_t result = ParabolaPath::create (device_, q1, q2, length_,
-                                                     coefficients_);
+      ParabolaPathPtr_t result = ParabolaPath::create (device_, q1, q2, length_,
+						       coefficients_);
+      (*result).V0_ = (*this).V0_;
+      (*result).Vimp_ = (*this).Vimp_;
       return result;
     }
 

@@ -43,7 +43,8 @@ namespace hpp {
       device_ (problem-> robot ()),
       distance_ (core::WeighedDistance::create (problem->robot())), weak_ (),
       g_(9.81), V0max_ (problem->vmax_), Vimpmax_ (problem->vmax_),
-      mu_ (problem->mu_), Dalpha_ (0.001), nLimit_ (6), initialConstraint_(true)
+      mu_ (problem->mu_), Dalpha_ (0.001), nLimit_ (6),initialConstraint_(true),
+      V0_ (vector_t(3)), Vimp_ (vector_t(3))
      {
         hppDout(notice,"Constructor steering-method-parabola");
      }
@@ -277,6 +278,10 @@ namespace hpp {
       ParabolaPathPtr_t pp = ParabolaPath::create (device_.lock(), q1, q2,
 						   computeLength (q1, q2,coefs),
 						   coefs);
+      pp->V0_ = V0_;
+      pp->Vimp_ = Vimp_;
+      hppDout (info, "pp->V0_= " << pp->V0_);
+      hppDout (info, "pp->Vimp_= " << pp->Vimp_);
       //bool hasCollisions = !rbPathValidation->validate (pp, false, validPart, report, filter); // DEBUG
       bool hasCollisions = false;
       std::size_t n = 0;
@@ -286,10 +291,10 @@ namespace hpp {
 	while ((hasCollisions || !maxHeightRespected) && n < nLimit_) {
 	  alpha = dichotomy (alpha_inf_bound, alpha_sup_bound, n);
 	  hppDout (info, "alpha= " << alpha);
-	  coefs = computeCoefficients (alpha, theta, X_theta, Z, x_theta_0,
-				       z_0);
+	  coefs = computeCoefficients (alpha, theta, X_theta, Z, x_theta_0,z_0);
+	  pp->V0_ = V0_; pp->Vimp_ = Vimp_;
 	  maxHeightRespected = parabMaxHeightRespected (coefs, x_theta_0,
-						    x_theta_imp);
+							x_theta_imp);
 	  pp = ParabolaPath::create (device_.lock (), q1, q2,
 				     computeLength (q1, q2, coefs), coefs);
 	  //hasCollisions = !rbPathValidation->validate (pp, false, validPart, report, filter); // DEBUG
@@ -421,7 +426,7 @@ namespace hpp {
 	return fail;
       else {
 	if (X > 0) {
-	  if (n2_angle > 0) {
+	  if (n2_angle >= 0) {
 	    if (alpha_imp_max > -M_PI/2) {
 	      *alpha_imp_sup = atan(-tan(alpha_imp_min)+2*Y/X);
 	      *alpha_imp_inf = atan(-tan(alpha_imp_max)+2*Y/X);
@@ -692,11 +697,17 @@ namespace hpp {
       coefs (2) = z_0 - tan(alpha)*x_theta_0 -
 	0.5*g_*x_theta_0*x_theta_0*inv_x_th_dot_0_sq;
       coefs (3) = theta;
-      // Also ompute initial and final velocities
+      // Also compute initial and final velocities
       const value_type V0 = sqrt((1 + tan(alpha)*tan(alpha))) * x_theta_0_dot;
       const value_type Vimp = sqrt(1 + (-g_*X_theta*inv_x_th_dot_0_sq+tan(alpha)) *(-g_*X_theta*inv_x_th_dot_0_sq+tan(alpha))) * x_theta_0_dot;
       hppDout (info, "V0: " << V0);
       hppDout (info, "Vimp: " << Vimp);
+      V0_ [0] = x_theta_0_dot*cos(theta);
+      V0_ [1] = x_theta_0_dot*sin(theta);
+      V0_ [2] = V0*sin(alpha);
+      Vimp_ [0] = x_theta_0_dot*cos(theta); // x_theta_imp_dot = x_theta_0_dot
+      Vimp_ [1] = x_theta_0_dot*sin(theta);
+      Vimp_ [2] = -g_*X_theta/x_theta_0_dot + x_theta_0_dot*tan(alpha);
       return coefs;
     }
 

@@ -21,22 +21,35 @@
 #include <hpp/rbprm/rbprm-state.hh>
 #include <hpp/rbprm/fullbodyBallistic/ballistic-path.hh>
 #include <hpp/rbprm/fullbodyBallistic/ballistic-interpolation.hh>
+#include <hpp/rbprm/planner/parabola-path.hh>
 
 namespace hpp {
   namespace rbprm {
     using model::displayConfig;
     using core::value_type;
+    using core::vector_t;
 
     BallisticInterpolationPtr_t
-    BallisticInterpolation::create (const hpp::rbprm::RbPrmFullBodyPtr_t robot,
+    BallisticInterpolation::create (const core::Problem& problem,
+				    const hpp::rbprm::RbPrmFullBodyPtr_t robot,
 				    const hpp::rbprm::State &start,
 				    const hpp::rbprm::State &end,
 				    const core::PathVectorConstPtr_t path) {
       BallisticInterpolation* rbprmDevice =
-	new BallisticInterpolation(path, robot, start, end);
+	new BallisticInterpolation(problem, robot, start, end, path);
       BallisticInterpolationPtr_t res (rbprmDevice);
       res->init (res);
       return res;
+    }
+
+    BallisticInterpolation::BallisticInterpolation
+    (const core::Problem& problem, const hpp::rbprm::RbPrmFullBodyPtr_t robot,
+     const hpp::rbprm::State &start, const State& end,
+     const core::PathVectorConstPtr_t path) : 
+      path_(path), start_(start), end_(end), problem_ (problem), robot_(robot) 
+	
+    {
+      // TODO
     }
 
     BallisticInterpolation::~BallisticInterpolation()
@@ -45,22 +58,15 @@ namespace hpp {
     }
 
     // ========================================================================
-
-    namespace
-    {
-      core::Configuration_t configPosition
-      (core::ConfigurationIn_t previous, const core::PathVectorConstPtr_t path,
-       double i)
-      {
-        core::Configuration_t configuration = previous;
-	bool success;
-        const core::Configuration_t configPosition =
-	  path->operator () (std::min(i, path->timeRange().second), success);
-        configuration.head(configPosition.rows()) = configPosition;
-        return configuration;
-      }
-    }
     
+    fcl::Vec3f BallisticInterpolation::computeDir
+    (const vector_t V0, const vector_t Vimp) {
+      fcl::Vec3f dir;
+      for (int i = 0; i < 3; i++)
+	dir [i] = V0 [i] - Vimp [i];
+      return dir;
+    }
+
     core::Configuration_t BallisticInterpolation::fillConfiguration
     (core::ConfigurationIn_t config, std::size_t configSize)
     {
@@ -111,35 +117,63 @@ namespace hpp {
       }*/
 
     core::PathVectorPtr_t BallisticInterpolation::InterpolateFullPath
-    (const model::ObjectVector_t &collisionObjects) {
+    (const model::ObjectVector_t &co) {
       if(!path_) throw std::runtime_error ("Cannot interpolate; not path given to interpolator ");
       model::Configuration_t qStart = start_.configuration_;
       model::Configuration_t qEnd = end_.configuration_;
       core::DevicePtr_t robot = robot_->device_;
+      core::Configuration_t q1 (robot->configSize ()), q2(robot->configSize ()),
+	q1contact (robot->configSize ()), q2contact (robot->configSize ());
+      const model::ObjectVector_t &collisionObjects =
+	problem_.collisionObstacles();
+      hppDout (info, "compare size of collision-objects from PS and problem:");
+      hppDout (info, "problem_solver: " << co.size ());
+      hppDout (info, "problem: " << collisionObjects.size ());
       const std::size_t subPathNumber = path_->numberPaths ();
       hppDout (info, "number of sub-paths: " << subPathNumber);
       core::PathVectorPtr_t newPath = core::PathVector::create 
 	(robot->configSize (), robot->numberDof ());
       robot_->noStability_ = true; // disable stability for waypoints
+      vector_t V0 (3), Vimp (3); fcl::Vec3f dir;
+      core::PathPtr_t subpath = path_->pathAtRank (0);
 
-      for (std::size_t i=0; i<subPathNumber; i++) {
-	core::PathPtr_t subpath = path_->pathAtRank (i);
-	core::Configuration_t q1 = fillConfiguration (subpath->initial (),
-						      robot->configSize ());
-	core::Configuration_t q2 = fillConfiguration (subpath->end (),
-						      robot->configSize ());
-	assert (q1.size () == robot->configSize ());
-	fcl::Vec3f dir;
-	// TODO: Force dir (for EFORT..) is given by the velocities difference
-	dir [0] = 0; dir [1] = 0; dir [2] = 1;
-	State state1 = ComputeContacts(robot_, q1, collisionObjects, dir);
-	core::Configuration_t q1contact = state1.configuration_;
+      for (std::size_t i = 0; i < subPathNumber - 1; i++) {
+	hppDout (info, "B-interp on path nb: " << i);
+	core::PathPtr_t subpath_next = path_->pathAtRank (i+1);
+	ParabolaPathPtr_t pp = 
+	  boost::dynamic_pointer_cast<ParabolaPath>(subpath);
+	ParabolaPathPtr_t pp_next = 
+	  boost::dynamic_pointer_cast<ParabolaPath>(subpath_next);
+	if (i == 0) { // keep qStart config which already has contacts
+	  hppDout (info, "keep start config");
+	  q1contact = qStart;
+	}
+	else {
+	  q1contact = q2contact;
+	}
+	q2 = fillConfiguration (subpath->end (), robot->configSize ());
+	V0 = pp_next->V0_; // V0_i+1
+	Vimp = pp->Vimp_; // Vimp_i
+	dir = computeDir (V0, Vimp);
+	hppDout (info, "dir (Vimp-V0)= " << dir);
 	State state2 = ComputeContacts(robot_, q2, collisionObjects, dir);
-	core::Configuration_t q2contact = state2.configuration_;
+	q2contact = state2.configuration_;
+	hppDout (info, "q2contact= " << displayConfig(q2contact));
 	BallisticPathPtr_t bp = Interpolate (q1contact, q2contact,
 					     subpath->length (),
 					     subpath->coefficients ());
 	newPath->appendPath (bp);
+	subpath = subpath_next;
+	
+	if (i == subPathNumber - 2) { // subpath_next = final subpath
+	  q1contact = q2contact;
+	  q2contact = qEnd;
+	  BallisticPathPtr_t bp = Interpolate (q1contact, q2contact,
+					       subpath->length (),
+					       subpath->coefficients ());
+	  newPath->appendPath (bp);
+	}
+	
       }
       hppDout (info, "new ballistic path vector: " << *newPath);
       return newPath;
@@ -148,9 +182,8 @@ namespace hpp {
     BallisticPathPtr_t BallisticInterpolation::Interpolate 
     (const model::Configuration_t q1, const model::Configuration_t q2,
      const core::value_type length, const core::vector_t coefficients) {
-      if(!path_) throw std::runtime_error ("Can not interpolate; not path given to interpolator ");
-      core::DevicePtr_t robot = robot_->device_;
-      BallisticPathPtr_t bp = BallisticPath::create (robot, q1, q2, length,
+      BallisticPathPtr_t bp = BallisticPath::create (robot_->device_, q1, q2,
+						     length,
 						     coefficients);
       return bp;
     }
@@ -160,13 +193,5 @@ namespace hpp {
       weakPtr_ = weakPtr;
     }
 
-    BallisticInterpolation::BallisticInterpolation (const core::PathVectorConstPtr_t path, const hpp::rbprm::RbPrmFullBodyPtr_t robot, const hpp::rbprm::State &start, const hpp::rbprm::State &end)
-      : path_(path)
-      , start_(start)
-      , end_(end)
-      , robot_(robot)
-    {
-      // TODO
-    }
   } // model
 } //hpp

@@ -22,6 +22,7 @@
 # include <hpp/rbprm/config.hh>
 # include <hpp/rbprm/rbprm-fullbody.hh>
 # include <hpp/core/path-vector.hh>
+# include <hpp/core/problem.hh>
 # include <hpp/model/device.hh>
 
 # include <vector>
@@ -48,7 +49,8 @@ namespace hpp {
       /// \param end the end full body configuration of the problem
       /// \return a pointer to the created BallisticInterpolation instance
       static BallisticInterpolationPtr_t create
-	(const RbPrmFullBodyPtr_t robot, const State& start, const State& end,
+	(const core::Problem& problem, const RbPrmFullBodyPtr_t robot,
+	 const State& start, const State& end,
 	 const core::PathVectorConstPtr_t path = core::PathVectorConstPtr_t());
 
       ~BallisticInterpolation();
@@ -84,9 +86,10 @@ namespace hpp {
       const State end_;
 
     protected:
-      BallisticInterpolation (const core::PathVectorConstPtr_t path,
+      BallisticInterpolation (const core::Problem& problem,
 			      const RbPrmFullBodyPtr_t robot,
-			      const State& start, const State& end);
+			      const State& start, const State& end,
+			      const core::PathVectorConstPtr_t path);
 
       ///
       /// \brief Initialization.
@@ -97,7 +100,14 @@ namespace hpp {
       core::Configuration_t fillConfiguration (core::ConfigurationIn_t config,
 					       std::size_t configSize);
 
+      /// Compute direction vector for EFORT relatively to a config
+      /// It is basically the difference between the landing velocity to the 
+      /// config and the takeoff from the config.
+      fcl::Vec3f computeDir (const core::vector_t V0,
+			     const core::vector_t Vimp);
+
     private:
+      const core::Problem problem_;
       RbPrmFullBodyPtr_t robot_; // device of fullbody
       BallisticInterpolationWkPtr_t weakPtr_;
     }; // class BallisticInterpolation

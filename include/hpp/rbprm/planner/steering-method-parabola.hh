@@ -115,7 +115,8 @@ namespace hpp {
 	problem_ (other.problem_), device_ (other.device_),
 	distance_ (other.distance_), weak_ (), g_(other.g_),
 	V0max_ (other.V0max_), Vimpmax_ (other.Vimpmax_),mu_ (other.mu_),
-	Dalpha_ (other.Dalpha_), nLimit_ (other.nLimit_)
+	Dalpha_ (other.Dalpha_), nLimit_ (other.nLimit_), V0_ (other.V0_),
+	Vimp_ (other.Vimp_)
 	{
 	}
 
@@ -190,6 +191,8 @@ namespace hpp {
       mutable value_type alpha_1_minus_;
       mutable value_type alpha_0_max_;
       mutable value_type alpha_0_min_;
+      mutable core::vector_t V0_;
+      mutable core::vector_t Vimp_;
 
       // Reminder for parabola-results = nb of fails from the following causes:
       // [0] collision or out of configs-bounds
