@@ -35,6 +35,7 @@ namespace hpp {
                                            ,const NormalFilter& normalFilter)
         : hpp::core::CollisionValidation(robot)
         , filter_(normalFilter)
+        , unusedReport_(new CollisionValidationReport)
     {
         if(!normalFilter.unConstrained_)
         {
@@ -44,37 +45,24 @@ namespace hpp {
     }
 
 
-    bool RbPrmRomValidation::validate (const Configuration_t& config,
-                    bool throwIfInValid)
+    bool RbPrmRomValidation::validate (const Configuration_t& config)
     {
-        ValidationReportPtr_t validationReport;
-        return validate(config,validationReport,throwIfInValid);
+        return validate(config, unusedReport_);
     }
 
     bool RbPrmRomValidation::validate (const Configuration_t& config,
-                    ValidationReportPtr_t& validationReport,
-                    bool /*throwIfInValid*/)
+                    ValidationReportPtr_t& validationReport)
     {        
-
-        RbprmValidationReportPtr_t rbprmReport =boost::dynamic_pointer_cast<RbprmValidationReport>(validationReport);
-
-        /*if(rbprmReport){
-          hppDout(notice,"rbprm-validation-report correctly cast");
-        }else{
-          hppDout(notice,"Validation report is not a valid rbprm-validation-report instance");
-        }*/
-
-        ValidationReportPtr_t report;
-        bool collision = !hpp::core::CollisionValidation::validate(config, report);
+        bool collision = !hpp::core::CollisionValidation::validate(config, validationReport);
         if(collision && !filter_.unConstrained_)
         {
             collision = false;
-            CollisionValidationReportPtr_t colReport =boost::dynamic_pointer_cast<CollisionValidationReport>(report);
-
-            for(std::size_t i = 0; i< colReport->result.numContacts() && !collision; ++i)
+            CollisionValidationReport* report =
+                    static_cast <CollisionValidationReport*> (validationReport.get());
+            for(std::size_t i = 0; i< report->result.numContacts() && !collision; ++i)
             {
                 // retrieve triangle
-                const fcl::Contact& contact =  colReport->result.getContact(i);
+                const fcl::Contact& contact =  report->result.getContact(i);
                 assert(contact.o2->getObjectType() == fcl::OT_BVH); // only works with meshes
                 const fcl::BVHModel<fcl::OBBRSS>* surface = static_cast<const fcl::BVHModel<fcl::OBBRSS>*> (contact.o2);
                 const fcl::Triangle& tr = surface->tri_indices[contact.b2];
@@ -87,6 +75,7 @@ namespace hpp {
                     collision = true;
                 }
             }
+	    /* Pierre work
             // test contact area size :  
             //TODO remove it after the precomputation of the meshs is working
            if(collision){
@@ -97,17 +86,8 @@ namespace hpp {
               double a = geom::area(intersection.begin(),intersection.end());
               if(a <= 0.1)
                 collision = false;
-            }
-            
-          //  hppDout(notice,"robotRom name : "<<robot_->name());
-            if(rbprmReport){  // if the report is a correct rbprm report, we add the rom information
-              rbprmReport->ROMReports.insert(std::make_pair(robot_->name(),colReport));
-            }else{ // otherwise we return a classic report
-              validationReport = colReport;
-            }
+		}*/
         }
-
-        rbprmReport->ROMFilters.insert(std::make_pair(robot_->name(),collision));  // here report = 0;
         return collision;
     }
   }// namespace rbprm

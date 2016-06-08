@@ -51,7 +51,7 @@ namespace hpp {
       /// \param config the config to check for validity,
       /// \param throwIfInValid if true throw an exception if config is invalid.
       /// \return whether the whole config is valid.
-     // virtual bool validate (const core::Configuration_t& config);
+      virtual bool validate (const core::Configuration_t& config);
 
       /// Compute whether the configuration is valid
       ///
@@ -67,41 +67,21 @@ namespace hpp {
       /// \param config the config to check for validity,
       /// \retval validationReport report on validation (used only for rom shape). This parameter will
       ///         dynamically cast into CollisionValidationReport type,
-      /// \param filter specify constraints on all roms required to be in contact, will return
-      /// false if all specified roms are not colliding
-      /// \param throwIfInValid if true throw an exception if config is invalid,
       /// \return whether the whole config is valid.
       virtual bool validate (const core::Configuration_t& config,
-                 core::ValidationReportPtr_t &validationReport,
                  const std::vector<std::string>& filter);
 
-
-      // needed (pure virtual in base class)
       /// Compute whether the configuration is valid
       ///
       /// \param config the config to check for validity,
-      /// \param throwIfInValid if true throw an exception if config is invalid.
+      /// \retval validationReport report on validation (used only for rom shape). This parameter will
+      ///         dynamically cast into CollisionValidationReport type,
+      /// \param filter specify constraints on all roms required to be in contact, will return
+      /// false if all specified roms are not colliding
       /// \return whether the whole config is valid.
-      /// \deprecated Use the method that takes as input a reference to a shared
-      ///             pointer to a validation report instead
       virtual bool validate (const core::Configuration_t& config,
-           bool throwIfInValid = false) HPP_CORE_DEPRECATED;
-
-      // needed (pure virtual in base class)
-      /// Compute whether the configuration is valid
-      ///
-      /// \param config the config to check for validity,
-      /// \retval validationReport report on validation. This object may be
-      ///         specialized by derived implementation to report specific
-      ///         information.
-      /// \param throwIfInValid if true throw an exception if config is invalid.
-      /// \return whether the whole config is valid.
-      /// \deprecated Use method that take as input a reference to a shared
-      ///             pointer to a validation report instead
-      virtual bool validate (const core::Configuration_t& config,
-           core::ValidationReport& validationReport,
-           bool throwIfInValid = false) HPP_CORE_DEPRECATED;
-
+                 core::ValidationReportPtr_t& validationReport,
+                 const std::vector<std::string>& filter);
 
       /// Add an obstacle
       /// \param object obstacle added
@@ -122,40 +102,21 @@ namespace hpp {
       /// \param config the config to check for validity,
       /// \param filter specify constraints on all roms required to be in contact, will return
       /// false if all specified roms are not colliding
-      /// \param validationReport the report (can be cast to rbprmValidationReport) with info on the trunk and ROM states,
-      /// \param throwIfInValid if true throw an exception if config is invalid,
-      /// \return whether the whole config is valid.
-      bool validateRoms(const core::Configuration_t& config,
-                        const std::vector<std::string>& filter,
-                         core::ValidationReportPtr_t &validationReport, bool throwIfInValid = false);
-
-      /// Compute whether the roms configurations are valid
-      /// \param config the config to check for validity,
-      /// \param validationReport the report (can be cast to rbprmValidationReport) with info on the trunk and ROM states,
-      /// \param throwIfInValid if true throw an exception if config is invalid,
-      /// \return whether the whole config is valid.
-      bool validateRoms(const core::Configuration_t& config,
-                         core::ValidationReportPtr_t &validationReport,bool throwIfInValid = false);
-
-      /// Compute whether the roms configurations are valid
-      /// \param config the config to check for validity,
-      /// \param throwIfInValid if true throw an exception if config is invalid,
-      /// \return whether the whole config is valid.
-      bool validateRoms(const core::Configuration_t& config,bool throwIfInValid = false);
-
-      /// Compute whether the roms configurations are valid
-      /// \param config the config to check for validity,
-      /// \param filter specify constraints on all roms required to be in contact, will return
-      /// false if all specified roms are not colliding
-      /// \param throwIfInValid if true throw an exception if config is invalid,
-      /// \return whether the whole config is valid.
-      bool validateRoms(const core::Configuration_t& config,const std::vector<std::string>& filter, bool throwIfInValid= false);
 
       /// Set the nbFilterMatch (number of filters that have to match 
       /// for validation)
       virtual void setSizeParameter(const std::size_t nbFilterMatch) {
 	nbFilterMatch_ = nbFilterMatch;
       }
+
+      /// \return whether the whole config is valid.
+      bool validateRoms(const core::Configuration_t& config,
+                        const std::vector<std::string>& filter);
+
+      /// Compute whether the roms configurations are valid
+      /// \param config the config to check for validity,
+      /// \return whether the whole config is valid.
+      bool validateRoms(const core::Configuration_t& config);
 
     public:
       /// CollisionValidation for the trunk
@@ -172,7 +133,7 @@ namespace hpp {
 
     private:
       std::size_t nbFilterMatch_; // number of filters that have to match
-
+      core::ValidationReportPtr_t unusedReport_;
     }; // class RbPrmValidation
     /// \}
   } // namespace rbprm

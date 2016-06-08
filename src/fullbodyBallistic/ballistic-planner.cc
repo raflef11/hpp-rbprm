@@ -323,9 +323,9 @@ namespace hpp {
 	polytope::U_stance (rotContact, posContact, nu, x, y);
       node->giwc(giwc);
       // TODO: modify ECS part of config HERE
-      core::matrix_t v = giwc->v;
-      hppDout (info, "v GIWC = " << v);
-      hppDout (info, "v GIWC size = " << v.size ());
+      //core::matrix_t v = giwc->v;
+      //hppDout (info, "v GIWC = " << v);
+      //hppDout (info, "v GIWC size = " << v.size ());
     }// computeGIWC
 
   } // namespace core

@@ -69,7 +69,8 @@ namespace hpp {
 				      const std::size_t nbFilterMatch)
       : trunkValidation_(tuneFclValidation(robot))
       , romValidations_(createRomValidations(robot, normalFilters))
-      , defaultFilter_(filter), nbFilterMatch_ (nbFilterMatch)
+      , defaultFilter_(filter), unusedReport_(new CollisionValidationReport),
+	nbFilterMatch_ (nbFilterMatch)
     {
       hppDout (info, "nbFilterMatch= " << nbFilterMatch);
       for(std::vector<std::string>::const_iterator cit = defaultFilter_.begin();
@@ -83,120 +84,52 @@ namespace hpp {
     }
 
     bool RbPrmValidation::validateRoms(const core::Configuration_t& config,
-                      const std::vector<std::string>& filter, ValidationReportPtr_t& validationReport,
-                      bool /*throwIfInValid*/)
+				       const std::vector<std::string>& filter)
     {
-      /*  hppDout(notice, "Filters = ");
-        for(std::vector<std::string>::const_iterator it = filter.begin() ; it != filter.end() ; ++it)
-          hppDout(notice,"filter : "<<*it);*/
-
-      // build a rbprm report and copy trunk report informations
-        RbprmValidationReportPtr_t rbprmReport(new RbprmValidationReport);
-
-        //hppDout(notice,"report in validateRoms = "<<rbprmReport);
-
-
-
-
-        if(validationReport){// if the trunk is in collision, we copy the informations in the new report
-          CollisionValidationReportPtr_t colReport = boost::dynamic_pointer_cast<CollisionValidationReport>(validationReport);
-          if(colReport->result.isCollision()){
-            rbprmReport->object1 = colReport->object1;
-            rbprmReport->object2 = colReport->object2;
-            rbprmReport->result = colReport->result;
-            rbprmReport->trunkInCollision = true;
-          }else{
-            rbprmReport->trunkInCollision=false;
-          }
-          //hppDout(notice, "trunk report exist");
-        }else{
-          rbprmReport->trunkInCollision=false;
-          //hppDout(notice, "trunk report doesn't exist");
-        }
-
-        ValidationReportPtr_t rbprmReportCast =  rbprmReport;
-
-        //hppDout(notice,"after cast  = "<<rbprmReportCast);
-
-
         unsigned int filterMatch(0);
         for(T_RomValidation::const_iterator cit = romValidations_.begin();
             cit != romValidations_.end() && (filterMatch < 1 || filterMatch < filter.size()); ++cit)
-        {
-            if((filter.empty() || std::find(filter.begin(), filter.end(), cit->first) != filter.end())
-                    && cit->second->validate(config, rbprmReportCast,false))
-            {
-	      //hppDout (info, "rom validation= " << cit->first);
-	      //hppDout (info, "rom validation= " << cit->second->validate(config, rbprmReportCast,false));
-	      ++filterMatch;
-            }
-        }
-	//if(filterMatch >= filter.size()) { // all filters must match
-	//hppDout (info, "nbFilterMatch_= " << nbFilterMatch_);
-        if(filterMatch >= nbFilterMatch_) { // just nbFilterMatch
-	  //hppDout (info, "number of filters that match: " << filterMatch);
-	  //hppDout (info, "enough filters, RoM is valid");
-          rbprmReport->romsValid=true;
-	}
-        else {
-	  //hppDout (info, "number of filters that match: " << filterMatch);
-	  //hppDout (info, "not enough filters, RoM is invalid");
-          rbprmReport->romsValid=false;
-	}
-        validationReport = rbprmReport;
-        //std::string tr = (filterMatch >= filter.size()) ? "true" : "false";
-        //hppDout(notice," validate romes ?" << filterMatch << " " <<  tr );
+	  {
+            if((filter.empty() || std::find(filter.begin(), filter.end(), cit->first) != filter.end()) && cit->second->validate(config))
+	      {
+		++filterMatch;
+	      }
+	  }
         return filterMatch >= nbFilterMatch_;
     }
 
-    bool RbPrmValidation::validateRoms(const core::Configuration_t& config, ValidationReportPtr_t& validationReport,bool throwIfInValid)
+    bool RbPrmValidation::validateRoms(const core::Configuration_t& config)
     {
-        return validateRoms(config,defaultFilter_,validationReport,throwIfInValid);
+        return validateRoms(config,defaultFilter_);
     }
 
-    bool RbPrmValidation::validateRoms(const core::Configuration_t& config,const std::vector<std::string>& filter, bool throwIfInValid)
+    bool RbPrmValidation::validate (const Configuration_t& config)
     {
-        ValidationReportPtr_t unusedReport;
-        return validateRoms(config,filter,unusedReport,throwIfInValid);
-    }
-
-    bool RbPrmValidation::validateRoms(const core::Configuration_t& config,bool throwIfInValid ){
-      ValidationReportPtr_t unusedReport;
-      return validateRoms(config,defaultFilter_,unusedReport,throwIfInValid);
-    }
-
-    /*bool RbPrmValidation::validate (const Configuration_t& config)
-    {
-        return trunkValidation_->validate(config)
+        return trunkValidation_->validate(config,unusedReport_)
              && validateRoms(config, defaultFilter_);
-    }*/
-
-    //needed (pure virtual in base class), deprecated
-    bool RbPrmValidation::validate (const Configuration_t& config,bool /*throwIfInValid*/)
-    {
-      return trunkValidation_->validate(config)
-           && validateRoms(config, defaultFilter_);
     }
-
-    bool RbPrmValidation::validate (const core::Configuration_t& config, core::ValidationReport& validationReport,bool /*throwIfInValid */){
-      ValidationReportPtr_t reportPtr(&validationReport);
-      return validate(config,reportPtr);
-    }
-
 
     bool RbPrmValidation::validate (const Configuration_t& config,
                ValidationReportPtr_t& validationReport)
     {
         return trunkValidation_->validate(config, validationReport)
-                && validateRoms(config, defaultFilter_,validationReport);
+                && validateRoms(config, defaultFilter_);
+    }
+
+
+    bool RbPrmValidation::validate (const Configuration_t& config,
+               const std::vector<std::string> &filter)
+    {
+        return trunkValidation_->validate(config, unusedReport_)
+                && validateRoms(config, filter);
     }
 
     bool RbPrmValidation::validate (const Configuration_t& config,
-                    ValidationReportPtr_t& validationReport,
+                    hpp::core::ValidationReportPtr_t &validationReport,
                     const std::vector<std::string>& filter)
     {
         return trunkValidation_->validate(config, validationReport)
-                && validateRoms(config, filter,validationReport);
+                && validateRoms(config, filter);
     }
 
     void RbPrmValidation::addObstacle (const CollisionObjectPtr_t& object)

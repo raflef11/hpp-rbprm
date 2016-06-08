@@ -1,3 +1,4 @@
+
 // Copyright (c) 2014, LAAS-CNRS
 // Authors: Steve Tonneau (steve.tonneau@laas.fr)
 //
@@ -24,8 +25,7 @@
 #include <hpp/core/config-projector.hh>
 #include <hpp/core/locked-joint.hh>
 #include <hpp/model/device.hh>
-#include <hpp/constraints/position.hh>
-#include <hpp/constraints/orientation.hh>
+#include <hpp/constraints/generic-transformation.hh>
 
 #include <hpp/fcl/BVH/BVH_model.h>
 
@@ -38,6 +38,7 @@
 namespace hpp {
   namespace rbprm {
 
+    const double epsilon = 10e-3;
 
     RbPrmFullBodyPtr_t RbPrmFullBody::create (const model::DevicePtr_t &device)
     {
@@ -52,24 +53,6 @@ namespace hpp {
         // NOTHING
     }
 
-
-    void RemoveNonLimbCollisionRec(const model::JointPtr_t joint, const std::string& limbname,
-                                   const model::ObjectVector_t &collisionObjects,
-                                   core::CollisionValidationPtr_t& collisionValidation)
-    {
-        if(joint->name() == limbname) return;
-        for(model::ObjectVector_t::const_iterator cit = collisionObjects.begin();
-            cit != collisionObjects.end(); ++cit)
-        {
-            collisionValidation->removeObstacleFromJoint(joint, *cit);
-        }
-        for(std::size_t i=0; i<joint->numberChildJoints(); ++i)
-        {
-            RemoveNonLimbCollisionRec(joint->childJoint(i), limbname, collisionObjects, collisionValidation);
-        }
-    }
-
-
     bool RbPrmFullBody::AddHeuristic(const std::string& name, const sampling::heuristic func)
     {
         return factory_.AddHeuristic(name, func);
@@ -77,7 +60,7 @@ namespace hpp {
 
 
     void RbPrmFullBody::AddLimbPrivate(rbprm::RbPrmLimbPtr_t limb, const std::string& id, const std::string& name,
-                        const model::ObjectVector_t &collisionObjects)
+                        const model::ObjectVector_t &collisionObjects, const bool disableEffectorCollision)
     {
         core::CollisionValidationPtr_t limbcollisionValidation_ = core::CollisionValidation::create(this->device_);
         // adding collision validation
@@ -90,16 +73,14 @@ namespace hpp {
             }
             limbcollisionValidation_->addObstacle(*cit);
             //remove effector collision
-            model::JointPtr_t collisionFree = limb->effector_;
-            while(collisionFree)
+            if(disableEffectorCollision)
             {
-                collisionValidation_->removeObstacleFromJoint(collisionFree, *cit);
-                limbcollisionValidation_->removeObstacleFromJoint(collisionFree,*cit);
-                collisionFree = collisionFree->numberChildJoints()>0 ? collisionFree->childJoint(0) : 0;
+                hpp::tools::RemoveEffectorCollision<core::CollisionValidation>((*collisionValidation_.get()), limb->effector_, *cit);
+                hpp::tools::RemoveEffectorCollision<core::CollisionValidation>((*limbcollisionValidation_.get()), limb->effector_, *cit);
             }
         }
         limbs_.insert(std::make_pair(id, limb));
-        RemoveNonLimbCollisionRec(device_->rootJoint(),name,collisionObjects,limbcollisionValidation_);
+        tools::RemoveNonLimbCollisionRec<core::CollisionValidation>(device_->rootJoint(),name,collisionObjects,*limbcollisionValidation_.get());
         limbcollisionValidations_.insert(std::make_pair(id, limbcollisionValidation_));
         // insert limb to root group
         T_LimbGroup::iterator cit = limbGroups_.find(name);
@@ -132,18 +113,18 @@ namespace hpp {
                                 const fcl::Vec3f &offset,const fcl::Vec3f &normal, const double x,
                                 const double y,
                                 const model::ObjectVector_t &collisionObjects, const std::size_t nbSamples, const std::string &heuristicName, const double resolution,
-                                ContactType contactType)
+                                ContactType contactType, const bool disableEffectorCollision)
     {
         std::map<std::string, const sampling::heuristic>::const_iterator hit = checkLimbData(id, limbs_,factory_,heuristicName);
         model::JointPtr_t joint = device_->getJointByName(name);
         rbprm::RbPrmLimbPtr_t limb = rbprm::RbPrmLimb::create(joint, effectorName, offset,normal,x,y, nbSamples, hit->second, resolution,contactType);
-        AddLimbPrivate(limb, id, name,collisionObjects);
+        AddLimbPrivate(limb, id, name,collisionObjects, disableEffectorCollision);
     }
 
     void RbPrmFullBody::AddLimb(const std::string& database, const std::string& id,
                                 const model::ObjectVector_t &collisionObjects,
                                 const std::string& heuristicName,
-                                const bool loadValues)
+                                const bool loadValues, const bool disableEffectorCollision)
     {
         std::map<std::string, const sampling::heuristic>::const_iterator hit = checkLimbData(id, limbs_,factory_,heuristicName);;
         std::ifstream myfile (database.c_str());
@@ -151,7 +132,7 @@ namespace hpp {
             throw std::runtime_error ("Impossible to open database");
         rbprm::RbPrmLimbPtr_t limb = rbprm::RbPrmLimb::create(device_, myfile, loadValues, hit->second);
         myfile.close();
-        AddLimbPrivate(limb, id, limb->limb_->name(),collisionObjects);
+        AddLimbPrivate(limb, id, limb->limb_->name(),collisionObjects, disableEffectorCollision);
     }
 
     void RbPrmFullBody::init(const RbPrmFullBodyWkPtr_t& weakPtr)
@@ -222,7 +203,8 @@ namespace hpp {
             cit != limb->sampleContainer_.samples_.end(); ++cit)
         {
             sampling::Load(*cit, configuration);
-            if(validation->validate(configuration) && (!stability || stability::IsStable(body,current) >=robustnessTreshold))
+            hpp::core::ValidationReportPtr_t valRep (new hpp::core::CollisionValidationReport);
+            if(validation->validate(configuration, valRep) && (!stability || stability::IsStable(body,current) >=robustnessTreshold))
             {
                 current.configuration_ = configuration;
                 return true;
@@ -256,17 +238,18 @@ namespace hpp {
             LockJointRec(limb->limb_->name(), body->device_->rootJoint(), proj);
             const fcl::Vec3f z = limb->effector_->currentTransformation().getRotation() * limb->normal_;
             const fcl::Matrix3f& rotation = previous.contactRotation_.at(name);
-            proj->add(core::NumericalConstraint::create (constraints::Position::create(body->device_, limb->effector_,fcl::Vec3f(0,0,0), ppos)));
+            proj->add(core::NumericalConstraint::create (constraints::Position::create("",body->device_, limb->effector_,fcl::Vec3f(0,0,0), ppos)));
             if(limb->contactType_ == hpp::rbprm::_6_DOF)
             {
-                proj->add(core::NumericalConstraint::create (constraints::Orientation::create(body->device_,
+                proj->add(core::NumericalConstraint::create (constraints::Orientation::create("", body->device_,
                                                                                   limb->effector_,
                                                                                   rotation,
                                                                                   setMaintainRotationConstraints(z))));
             }
             if(proj->apply(config))
             {
-                if(limbValidations.at(name)->validate(config))
+                hpp::core::ValidationReportPtr_t valRep (new hpp::core::CollisionValidationReport);
+                if(limbValidations.at(name)->validate(config, valRep))
                 {
                     // stable?
                     current.contacts_[name] = true;
@@ -393,20 +376,23 @@ namespace hpp {
               core::ConfigProjectorPtr_t proj = core::ConfigProjector::create(body->device_,"proj", 1e-2, 30); // DEBUG, initially: 1e-4, 20
               // get current normal orientation
               LockJointRec(limb->limb_->name(), body->device_->rootJoint(), proj);
-              proj->add(core::NumericalConstraint::create (constraints::Position::create(body->device_,
+              fcl::Vec3f posOffset = position - rotation * limb->offset_;
+              posOffset = posOffset + normal * epsilon;
+              fcl::Transform3f localFrame, globalFrame;
+              localFrame.setTranslation(posOffset);
+              proj->add(core::NumericalConstraint::create (constraints::Position::create("",body->device_,
                                                                                          limb->effector_,
-                                                                                         fcl::Vec3f(0,0,0),
-                                                                                         position - rotation * limb->offset_, //)));
-                                                                                         model::matrix3_t::getIdentity(),
+                                                                                         globalFrame,
+                                                                                         localFrame,
                                                                                          setTranslationConstraints(normal))));//
 
 
 
               if(limb->contactType_ == hpp::rbprm::_6_DOF)
               {
-                  proj->add(core::NumericalConstraint::create (constraints::Orientation::create(body->device_,
+                  proj->add(core::NumericalConstraint::create (constraints::Orientation::create("",body->device_,
                                                                                                 limb->effector_,
-                                                                                                rotation,
+                                                                                                fcl::Transform3f(rotation),
                                                                                                 setRotationConstraints(z))));
               }
 	      /*#ifdef PROFILE
@@ -424,7 +410,8 @@ namespace hpp {
     RbPrmProfiler& watch = getRbPrmProfiler();
     watch.start("collision");
     #endif*/
-                if(validation->validate(configuration))
+                hpp::core::ValidationReportPtr_t valRep (new hpp::core::CollisionValidationReport);
+                if(validation->validate(configuration, valRep))
                 {
 		  hppDout (info, "config is valid");
 		  /*#ifdef PROFILE
@@ -465,11 +452,14 @@ namespace hpp {
                         unstableContact = true;
                     }
                 }else{
-		  core::CollisionValidationReport report;
-		  validation->validate(configuration, report);
+		  // Debug: check if collision and get colliding objects
+		  core::ValidationReportPtr_t valReport;
+		  validation->validate(configuration, valReport);
+		  core::CollisionValidationReport* report =
+                    static_cast <core::CollisionValidationReport*> (valReport.get());
 		  hppDout (info, "config is NOT valid");
-		  hppDout (info, "collision with:" << report.object1->name ());
-		  hppDout (info, "collision with:" << report.object2->name ());
+		  hppDout (info, "collision with:"<<report->object1->name ());
+		  hppDout (info, "collision with:"<<report->object2->name ());
 		}                
 		/*#ifdef PROFILE
 else

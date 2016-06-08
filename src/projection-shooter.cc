@@ -60,7 +60,7 @@ namespace hpp {
 	// Project on nearest obstacle and shift away
 	// TODO: shift to reach rom
 	*config = project (*config);
-      }while (!rbValidation->validate (*config, rbValidationReport));
+      }while (!rbValidation->validate (*config));
       return config;
     }
 
