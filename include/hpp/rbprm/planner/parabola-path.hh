@@ -66,6 +66,29 @@ namespace hpp {
 	return shPtr;
       }
 
+      /// Create instance and return shared pointer
+      /// \param device Robot corresponding to configurations
+      /// \param init, end Start and end configurations of the path
+      /// \param length Distance between the configurations.
+      /// \param V0, Vimp initial and final velocity vectors
+      /// \param initialROMnames, endROMnames initial and final ROM names
+      static ParabolaPathPtr_t create(const core::DevicePtr_t& device,
+				      core::ConfigurationIn_t init,
+				      core::ConfigurationIn_t end,
+				      core::value_type length,
+				      core::vector_t coefficients,
+				      core::vector_t V0, core::vector_t Vimp,
+				      std::vector <std::string> initialROMnames,
+				      std::vector <std::string> endROMnames)
+      {
+	ParabolaPath* ptr = new ParabolaPath (device, init, end, length,
+					      coefficients, V0, Vimp,
+					      initialROMnames, endROMnames);
+	ParabolaPathPtr_t shPtr (ptr);
+	ptr->init (shPtr);
+	return shPtr;
+      }
+
       /// Create copy and return shared pointer
       /// \param path path to copy
       static ParabolaPathPtr_t createCopy (const ParabolaPathPtr_t& path)
@@ -169,7 +192,13 @@ namespace hpp {
       core::vector_t coefficients () const {
 	return coefficients_;
       }
-     
+      
+      core::value_type computeLength (const core::ConfigurationIn_t q1,
+				const core::ConfigurationIn_t q2) const;
+
+      /// Evaluate velocity vector at path abcissa t
+      core::vector_t evaluateVelocity (const core::value_type t) const;
+
       core::value_type alpha_; // chosen alpha in intervalle
       core::value_type alphaMin_; // min bound of alpha intervalle
       core::value_type alphaMax_; // max bound of alpha intervalle
@@ -177,6 +206,8 @@ namespace hpp {
       core::value_type Z_;
       core::vector_t V0_; // initial velocity
       core::vector_t Vimp_; // final velocity
+      std::vector <std::string> initialROMnames_; // active ROM list at begining
+      std::vector <std::string> endROMnames_; // active ROM list at end
       
      
     protected:
@@ -196,11 +227,18 @@ namespace hpp {
                     core::ConfigurationIn_t end, core::value_type length,
                     core::vector_t coefficients);
 
+      /// Constructor with velocities and ROMnames
+      ParabolaPath (const core::DevicePtr_t& device,
+		    core::ConfigurationIn_t init,
+		    core::ConfigurationIn_t end,
+		    core::value_type length,
+		    core::vector_t coefs,
+		    core::vector_t V0_, core::vector_t Vimp,
+		    std::vector <std::string> initialROMnames,
+		    std::vector <std::string> endROMnames);
+
       /// Copy constructor
       ParabolaPath (const ParabolaPath& path);
-
-      core::value_type computeLength (const core::ConfigurationIn_t q1,
-				      const core::ConfigurationIn_t q2) const;
 
       core::value_type lengthFunction (const core::value_type x)const;
 
@@ -224,13 +262,12 @@ namespace hpp {
       virtual bool impl_compute (core::ConfigurationOut_t result,
                                  core::value_type param) const;
       
-
     private:
       core::DevicePtr_t device_;
       core::Configuration_t initial_;
       core::Configuration_t end_;
       ParabolaPathWkPtr_t weak_;
-      mutable core::vector_t coefficients_; // 4 parabola coefficients
+      mutable core::vector_t coefficients_; // parabola coefficients
       mutable core::value_type length_;
     }; // class ParabolaPath
   } //   namespace rbprm

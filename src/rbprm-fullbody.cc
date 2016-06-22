@@ -386,8 +386,9 @@ namespace hpp {
                                                                                          localFrame,
                                                                                          setTranslationConstraints(normal))));//
 
+	      hppDout (info, "test before rot constr: " << proj->apply(configuration));
 
-
+	      hppDout (info, "limb->effector_ jaco cols= " << limb->effector_->jacobian().cols());
               if(limb->contactType_ == hpp::rbprm::_6_DOF)
               {
                   proj->add(core::NumericalConstraint::create (constraints::Orientation::create("",body->device_,
@@ -399,7 +400,7 @@ namespace hpp {
     RbPrmProfiler& watch = getRbPrmProfiler();
     watch.start("ik");
     #endif*/
-    hppDout (info, "before projection test");
+    
               if(proj->apply(configuration))
               {
 		hppDout (info, "in projection test");

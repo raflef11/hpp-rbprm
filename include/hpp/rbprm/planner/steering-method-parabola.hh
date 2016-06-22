@@ -176,6 +176,10 @@ namespace hpp {
       value_type dichotomy (value_type a_inf, value_type a_plus, 
 			    std::size_t n) const;
 
+      /// Loop on collision ROMs and fill names in ParabolaPath
+      void fillROMnames (core::ConfigurationIn_t q,
+			 std::vector <std::string> * ROMnames) const;
+
       core::ProblemPtr_t problem_;
       core::DeviceWkPtr_t device_;
       core::WeighedDistancePtr_t distance_;
@@ -193,6 +197,8 @@ namespace hpp {
       mutable value_type alpha_0_min_;
       mutable core::vector_t V0_;
       mutable core::vector_t Vimp_;
+      mutable std::vector <std::string> initialROMnames_; // active ROMs
+      mutable std::vector <std::string> endROMnames_;
 
       // Reminder for parabola-results = nb of fails from the following causes:
       // [0] collision or out of configs-bounds

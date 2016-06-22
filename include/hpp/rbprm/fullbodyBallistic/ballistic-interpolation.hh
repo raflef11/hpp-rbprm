@@ -24,6 +24,7 @@
 # include <hpp/core/path-vector.hh>
 # include <hpp/core/problem.hh>
 # include <hpp/model/device.hh>
+#include <hpp/rbprm/planner/parabola-path.hh>
 
 # include <vector>
 
@@ -69,8 +70,17 @@ namespace hpp {
       /// states so that:
       /// the trunk is still following the parabola path
       /// the limbs are linearly interpolated
+      /// \param u_offset: normalized curvilinear abcissa of contact maintain
       core::PathVectorPtr_t InterpolateFullPath
-	(const model::ObjectVector_t &collisionObjects);
+	(const core::value_type u_offset = 0);
+
+      /// Between Start and End states, tranform the trunk path and the 
+      /// start-goal states so that:
+      /// the trunk is still following the parabola path
+      /// the limbs are linearly interpolated
+      /// \param u_offset: normalized curvilinear abcissa of contact maintain
+      core::PathVectorPtr_t InterpolateDirectPath
+	(const core::value_type u_offset);
 
       /// Tranform the trunk path and the start-goal states so that:
       /// the trunk is still following the parabola path
@@ -80,6 +90,22 @@ namespace hpp {
 				      const model::Configuration_t q2,
 				      const core::value_type length,
 				      const core::vector_t coefficients);
+
+      void extendingPose (const core::Configuration_t extendingPose) {
+	extendingPose_ = extendingPose;
+      }
+
+      core::Configuration_t extendingPose () {
+	return extendingPose_;
+      }
+
+      void flexionPose (const core::Configuration_t flexionPose) {
+	flexionPose_ = flexionPose;
+      }
+
+      core::Configuration_t flexionPose () {
+	return flexionPose_;
+      }
 
       const core::PathVectorConstPtr_t path_;
       const State start_;
@@ -94,11 +120,9 @@ namespace hpp {
       ///
       /// \brief Initialization.
       ///
-      void init (const BallisticInterpolationWkPtr_t& weakPtr);
-
-      /// Fill current config with 0 and copy ECS part
-      core::Configuration_t fillConfiguration (core::ConfigurationIn_t config,
-					       std::size_t configSize);
+      void init (const BallisticInterpolationWkPtr_t& weakPtr) {
+      weakPtr_ = weakPtr;
+    }
 
       /// Compute direction vector for EFORT relatively to a config
       /// It is basically the difference between the landing velocity to the 
@@ -106,10 +130,54 @@ namespace hpp {
       fcl::Vec3f computeDir (const core::vector_t V0,
 			     const core::vector_t Vimp);
 
+      /// Fill current config with 0 and copy ECS part
+      core::Configuration_t fillConfiguration (core::Configuration_t config,
+					       std::size_t configSize);
+
+      /// Compute the number of joints in the given limb (starting from limb
+      /// and finishing to effector
+      std::size_t computeLimbLength (const model::JointPtr_t limb,
+				     const model::JointPtr_t effector);
+
+      /// Replace limb-in-contact parts of configuration from q_contact
+      /// to q_full
+      core::Configuration_t replaceLimbConfigsInFullConfig
+	(const core::Configuration_t q_full,
+	 const core::Configuration_t q_contact,
+	 const std::vector <RbPrmLimbPtr_t> limbs);
+
+      /// Get a list of limbs that are active, i.e. which ROMs are in collision
+      /// Comparison is made between the ROM name and the limb effector-name
+      std::vector <RbPrmLimbPtr_t> activeLimbsFromROMs
+	(const ParabolaPathPtr_t pp, const bool startConfig);
+
+      std::vector<bool> setMaintainRotationConstraints(const fcl::Vec3f&);
+      std::vector<bool> setTranslationConstraints(const fcl::Vec3f&);
+
+      /// Add to the projector a LockJoint component
+      void LockJointRec (const std::string& limb, const model::JointPtr_t joint,
+			 core::ConfigProjectorPtr_t& projector);
+
+      bool ComputeCollisionFreeConfiguration
+	(State& current, core::CollisionValidationPtr_t validation,
+	 const hpp::rbprm::RbPrmLimbPtr_t& limb,
+	 model::ConfigurationOut_t configuration,
+	 const double robustnessTreshold, bool stability = true);
+
+      /// Compute a state that *if possible* keeps the same contacts as
+      /// in the previous state given.
+      State MaintainPreviousContacts
+	(const State& previous,
+	 std::map<std::string,core::CollisionValidationPtr_t>& limbValidations,
+	 model::ConfigurationIn_t configuration, bool& contactMaintained,
+	 bool& multipleBreaks, const double robustnessTreshold);
+      
     private:
       const core::Problem problem_;
       RbPrmFullBodyPtr_t robot_; // device of fullbody
       BallisticInterpolationWkPtr_t weakPtr_;
+      core::Configuration_t extendingPose_;
+      core::Configuration_t flexionPose_;
     }; // class BallisticInterpolation
   } // namespace rbprm
 } // namespace hpp

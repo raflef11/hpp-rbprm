@@ -34,6 +34,7 @@
 #include <hpp/core/path-validation-report.hh>
 #include <hpp/rbprm/rbprm-path-validation.hh>
 #include <hpp/rbprm/rbprm-validation-report.hh>
+#include <hpp/rbprm/fullbodyBallistic/parabola-library.hh>
 #include <hpp/core/config-validations.hh>
 
 namespace hpp {
@@ -44,24 +45,32 @@ namespace hpp {
     using model::size_type;
 
     BallisticPlanner::BallisticPlanner (const core::Problem& problem):
-      PathPlanner (problem),
+      PathPlanner (problem), problem_ (core::ProblemPtr_t(&problem)),
       configurationShooter_ (problem.configurationShooter()),
       smParabola_(rbprm::SteeringMethodParabola::create((core::ProblemPtr_t(&problem)))),
       rbRoadmap_(core::RbprmRoadmap::create (problem.distance (),problem.robot())), roadmap_(boost::dynamic_pointer_cast<core::Roadmap>(rbRoadmap_)),
-      fullRobot_ (RbPrmFullBody::create(problem.robot ()))
+      fullRobot_ (RbPrmFullBody::create(problem.robot ())),
+      contactSize_ (core::vector_t(2))
     {
       hppDout(notice,"Constructor ballistic-planner");
     }
 
     BallisticPlanner::BallisticPlanner (const core::Problem& problem,
 					const core::RoadmapPtr_t& roadmap) :
-      PathPlanner (problem, roadmap),
+      PathPlanner (problem, roadmap), problem_ (core::ProblemPtr_t(&problem)),
       configurationShooter_ (problem.configurationShooter()),
       smParabola_(rbprm::SteeringMethodParabola::create((core::ProblemPtr_t(&problem)))),
       rbRoadmap_(boost::dynamic_pointer_cast<core::RbprmRoadmap>(roadmap)),
-      roadmap_(roadmap), fullRobot_ (RbPrmFullBody::create(problem.robot ()))
+      roadmap_(roadmap), fullRobot_ (RbPrmFullBody::create(problem.robot ())),
+      contactSize_ (core::vector_t(2))
     {
       hppDout(notice,"Constructor ballistic-planner with Roadmap");
+      hppDout(info,"contactSize_= " << contactSize_);
+      if (!rbRoadmap_) {
+	hppDout (info, "Problem with RbPrmRoadmap cast, create new one");
+	rbRoadmap_ = core::RbprmRoadmap::create (problem.distance (),problem.robot());
+      }
+      
     }
 
     void BallisticPlanner::oneStep ()
@@ -70,35 +79,33 @@ namespace hpp {
       core::PathPtr_t localPath;
       DelayedEdge_t fwdDelayedEdge, bwdDelayedEdge;
       DelayedEdges_t fwdDelayedEdges;
+      const size_type indexECS = robot->configSize () - robot->extraConfigSpace ().dimension ();
 
-      fcl::Vec3f dir; dir [0] = 0; dir [1] = 0; dir [2] = 1;
-      model::ObjectVector_t collObjs = problem ().collisionObstacles ();
-      
       // shoot a RB-valid random configuration using rbprm-shooter
       core::ConfigurationPtr_t q_rand;
+      bool valid = false;
+      core::ValidationReportPtr_t report;
+      
+      while (!valid) {
       hppDout(notice,"# oneStep BEGIN");
       q_rand = configurationShooter_->shoot ();
       hppDout (info, "q_rand: " << displayConfig (*q_rand));
-
-      // TODO: update cone-normal from contact areas  -> GWIC Pierre !!
-      // TODO: dir = cone direction (we don't know the velocities yet..)
-      
-      // compute non-stable contact position from q_rand
-      // this could be used to say "see, the cone is not that different"
-      // so... can be done after planning !
-      fullRobot_->noStability_ = true;
-      State state = ComputeContacts (fullRobot_, *q_rand, collObjs, dir);
-      core::ConfigurationPtr_t qcontact ( new core::Configuration_t (state.configuration_));
-      hppDout (info, "qcontact: " << displayConfig (*qcontact)); // DON'T USE IT
-
-      // TODO: update cone-normal from contact areas  -> GWIC Pierre !!
+      computeGIWC(*q_rand);
+      for (std::size_t i = 0; i < 3; i++)
+      (*q_rand) [i + indexECS] = contactNormalAverage_ [i];
+	hppDout (info, "q_rand after giwc: " << displayConfig (*q_rand));
+	*q_rand = setOrientation (robot, *q_rand); // update with new normal
+	hppDout (info, "q_rand after setOrient: " << displayConfig (*q_rand));
+	valid = problem ().configValidations()->validate(*q_rand,report);
+	if (!valid)
+	  hppDout (info, "giwc normal + setOrientation => not valid");
+      }
 
       // Add q_rand as a new node: here for the parabola, as the impact node
       core::NodePtr_t impactNode = roadmap ()->addNode (q_rand);
       impactNode->indexInRM (roadmap ()->nodeIndex_);
       roadmap ()->nodeIndex_++;
-      core::RbprmNodePtr_t x_new = rbprmRoadmap()->addNode(q_rand);
-      computeGIWC(x_new);
+      //rbprmRoadmap()->addNode(q_rand);
 
       // try to connect the random configuration to each connected component
       // of the roadmap.
@@ -178,29 +185,27 @@ namespace hpp {
       } //for qgoals
     }
 
-    void BallisticPlanner::computeGIWC(const core::RbprmNodePtr_t x){
-      core::ValidationReportPtr_t report;
-      problem().configValidations()->validate(*(x->configuration()),report);
-      computeGIWC(x,report);
-    }
-
-    void BallisticPlanner::computeGIWC(const core::RbprmNodePtr_t node,
-				       core::ValidationReportPtr_t report){
+    void BallisticPlanner::computeGIWC(const core::Configuration_t q){
       hppDout(notice,"## compute GIWC");
-      core::ConfigurationPtr_t q = node->configuration();
-      // fil normal information in node
-      if(node){
-        size_t cSize = problem().robot()->configSize();
-        hppDout(info,"~~ NODE cast correctly");
-        node->normal((*q)[cSize-3],(*q)[cSize-2],(*q)[cSize-1]);
-        hppDout(info,"~~ normal = "<<node->getNormal());
-        
-      }else{
-        hppDout(error,"~~ NODE cannot be cast");
-        return;
+      const polytope::ProjectedCone* giwc = NULL;
+      core::ValidationReportPtr_t report;
+      const core::DevicePtr_t& robot (problem_->robot ());
+      model::RbPrmDevicePtr_t rbDevice =
+	boost::dynamic_pointer_cast<model::RbPrmDevice> (robot);
+      if (!rbDevice) {
+	hppDout(error,"~~ Device cast in RB problem");
+	return;
       }
-      hppDout(info,"~~ q = "<<displayConfig(*q));
-      
+
+      const bool isValid = problem ().configValidations()->validate(q,report);
+      if(!isValid) {
+	hppDout(warning,"~~ ComputeGIWC : config is not valid");
+	return;
+      }
+      if (!report) {
+	hppDout(error,"~~ Report problem");
+	return;
+      }
       core::RbprmValidationReportPtr_t rbReport =
 	boost::dynamic_pointer_cast<core::RbprmValidationReport> (report);
       // checks :
@@ -208,14 +213,6 @@ namespace hpp {
 	{
 	  hppDout(error,"~~ Validation Report cannot be cast");
 	  return;
-	}
-      if(rbReport->trunkInCollision)
-	{
-	  hppDout(warning,"~~ ComputeGIWC : trunk is in collision"); // shouldn't happen
-	}
-      if(!rbReport->romsValid)
-	{
-	  hppDout(warning,"~~ ComputeGIWC : roms filter not respected"); // shouldn't happen
 	}
       
       //TODO
@@ -225,7 +222,9 @@ namespace hpp {
       
       // get the 2 object in contact for each ROM :
       hppDout(info,"~~ Number of roms in collision : "<<rbReport->ROMReports.size());
-      size_t indexRom = 0 ;
+      fcl::Vec3f normalAv (0,0,0);
+      const std::size_t nbNormalAv = rbReport->ROMReports.size();
+      size_t indexRom = 0;
       for(std::map<std::string,core::CollisionValidationReportPtr_t>::const_iterator it = rbReport->ROMReports.begin() ; it != rbReport->ROMReports.end() ; ++it)
 	{
 	  hppDout(info,"~~ for rom : "<<it->first);
@@ -253,17 +252,11 @@ namespace hpp {
 	  geom::T_Point vertices1;
 	  geom::BVHModelOBConst_Ptr_t model1 =  geom::GetModel(obj1->fcl());
 	  hppDout(info,"vertices obj1 : "<<obj1->name()<< " ( "<<model1->num_vertices<<" ) ");
-	  std::ostringstream ss1;
-	  ss1<<"[";
 	  for(int i = 0 ; i < model1->num_vertices ; ++i)
 	    {
 	      vertices1.push_back(Eigen::Vector3d(model1->vertices[i][0], model1->vertices[i][1], model1->vertices[i][2]));
 	      //hppDout(notice,"vertices : "<<model1->vertices[i]);
-	      ss1<<"["<<model1->vertices[i][0]<<","<<model1->vertices[i][1]<<","<<model1->vertices[i][2]<<"]";
-	      if(i< (model1->num_vertices-1))
-		ss1<<",";
 	    }
-	  ss1<<"]";
 	  //std::cout<<ss1.str()<<std::endl;
         
         
@@ -271,22 +264,20 @@ namespace hpp {
 	  geom::T_Point vertices2;
 	  geom::BVHModelOBConst_Ptr_t model2 =  geom::GetModel(obj2->fcl());
 	  hppDout(info,"vertices obj2 : "<<obj2->name()<< " ( "<<model2->num_vertices<<" ) ");
-	  std::ostringstream ss2;
-	  ss2<<"[";
 	  for(int i = 0 ; i < model2->num_vertices ; ++i)
 	    {
 	      vertices2.push_back(Eigen::Vector3d(model2->vertices[i][0], model2->vertices[i][1], model2->vertices[i][2]));
 	      // hppDout(notice,"vertices : "<<model2->vertices[i]);
-	      ss2<<"["<<model2->vertices[i][0]<<","<<model2->vertices[i][1]<<","<<model2->vertices[i][2]<<"]";
-	      if(i< (model2->num_vertices -1))
-		ss2<<",";
-          
 	    }
-	  ss2<<"]";
 	  //std::cout<<ss2.str()<<std::endl;
         
 	  geom::T_Point hull = geom::intersectPolygonePlane(model1,model2,fcl::Vec3f(0,0,1),geom::ZJUMP,result);
-        
+	  
+	  if(hull.size() == 0){
+	    hppDout(error,"No intersection between rom and environnement");
+	    return;
+	  }
+
 	  // todo : compute center point of the hull
 	  polytope::vector3_t normal,tangent0,tangent1;
 	  geom::Point center = geom::center(hull.begin(),hull.end());
@@ -308,24 +299,34 @@ namespace hpp {
 	  //std::cout<<rot<<std::endl<<std::endl;
         
 	  indexRom++;
+	  for (std::size_t i = 0; i < 3; i++) {
+	    normalAv [i] += normal [i]/nbNormalAv;
+	    hppDout (info, "normal [i]/nbNormalAv= " << normal [i]/nbNormalAv);
+	  }
 	} // for each ROMS
+      hppDout (info, "normalAv= " << normalAv);
+      normalAv.normalize ();
+      hppDout (info, "normed normalAv= " << normalAv);
+      contactNormalAverage_ = normalAv;
       
       polytope::vector_t x(rbReport->ROMReports.size());
       polytope::vector_t y(rbReport->ROMReports.size());
       polytope::vector_t nu(rbReport->ROMReports.size());
+      const value_type xContact = rbDevice->contactSize_ [0];
+      const value_type yContact = rbDevice->contactSize_ [1];
+      hppDout (info, "xContact= " << xContact);
+      hppDout (info, "yContact= " << yContact);
       for(size_t k = 0 ; k<rbReport->ROMReports.size() ; ++k){
-        x(k) = 0.25; // approx size of foot
-        y(k) = 0.15; 
-        nu(k) = 0.5;
+        x(k) = xContact; // approx size of foot  (x length, y width)
+        y(k) = yContact; 
+        nu(k) = problem_->mu_;
       }
       // save giwc in node structure
-      const polytope::ProjectedCone* giwc =
-	polytope::U_stance (rotContact, posContact, nu, x, y);
-      node->giwc(giwc);
-      // TODO: modify ECS part of config HERE
-      //core::matrix_t v = giwc->v;
-      //hppDout (info, "v GIWC = " << v);
-      //hppDout (info, "v GIWC size = " << v.size ());
+      // PROBLEM: when activating polytope::U_stance,
+      // 'rand' in config-shooter always return the same values
+      //giwc = polytope::U_stance (rotContact, posContact, nu, x, y);
+      //hppDout (info, "giwc was computed");
+      //const core::matrix_t& V = giwc->V;
     }// computeGIWC
 
   } // namespace core

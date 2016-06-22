@@ -96,24 +96,20 @@ namespace hpp {
     private:
 
       /**
-       * @brief computeGIWC compute the GIWC for the node configuration and fill the node attribut
-       * @param x the node
-       * @param report the RBPRM report corresponding to the node's configuration
-       */
-      void computeGIWC(const core::RbprmNodePtr_t x, core::ValidationReportPtr_t report);
-
-      /**
-       * @brief computeGIWC compute the GIWC for the node configuration and fill the node attribut, get validation report and call the second method
+       * @brief computeGIWC compute the GIWC for the configuration and fill the node attribut, get validation report and call the second method
        * @param x the node
        */
-      void computeGIWC(const core::RbprmNodePtr_t x);
+      void computeGIWC (const core::Configuration_t q);
 
+      core::ProblemPtr_t problem_;
       core::ConfigurationShooterPtr_t configurationShooter_;
       BallisticPlannerWkPtr_t weakPtr_;
       SteeringMethodParabolaPtr_t smParabola_;
-      const core::RbprmRoadmapPtr_t rbRoadmap_;
+      core::RbprmRoadmapPtr_t rbRoadmap_;
       const core::RoadmapPtr_t roadmap_;
       const RbPrmFullBodyPtr_t fullRobot_; // for contact generation
+      fcl::Vec3f contactNormalAverage_; // "average" dir of CoM cone
+      core::vector_t contactSize_; // should depend on the ROM
     };
     /// \}
   } // namespace rbprm

@@ -79,10 +79,15 @@ namespace hpp {
         /// [z_inf, z_sup, y_inf, y_sup, x_inf, x_sup]
         void BoundSO3(const std::vector<double>& limitszyx);
 
-    public:
-        typedef std::pair<fcl::Vec3f, TrianglePoints> T_TriangleNormal;
+	/// Set fullOrientationMode
+	/// true if robot fully oriented according to obstacle surface normal
+	/// false if robot randomly oriented
+	void fullOrientationMode (const bool fullOrientationMode) {
+	  fullOrientationMode_ = fullOrientationMode;
+	}
 
     public:
+	typedef std::pair<fcl::Vec3f, TrianglePoints> T_TriangleNormal;
         const std::size_t shootLimit_;
         const std::size_t displacementLimit_;
         const std::vector<std::string> filter_;
@@ -112,6 +117,7 @@ namespace hpp {
         rbprm::RbPrmValidationPtr_t validator_;
         RbPrmShooterWkPtr_t weak_;
         model::DevicePtr_t eulerSo3_;
+	bool fullOrientationMode_;
     }; // class RbprmShooter
 /// \}
     } // namespace rbprm

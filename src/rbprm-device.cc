@@ -93,6 +93,7 @@ namespace hpp {
     RbPrmDevice::RbPrmDevice (const std::string& name, const hpp::model::T_Rom &robotRoms)
         : Device(name)
         , robotRoms_(robotRoms)
+	, contactSize_ (vector_t(2))
         , weakPtr_()
     {
         /*if(robotTrunk->configSize() != robotRom->configSize())

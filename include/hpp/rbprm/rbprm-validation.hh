@@ -113,10 +113,24 @@ namespace hpp {
       bool validateRoms(const core::Configuration_t& config,
                         const std::vector<std::string>& filter);
 
+      /// \return whether the whole config is valid,
+      /// and fill validation-report.
+      bool validateRoms(const core::Configuration_t& config,
+                        const std::vector<std::string>& filter,
+			core::ValidationReportPtr_t& validationReport);
+
       /// Compute whether the roms configurations are valid
       /// \param config the config to check for validity,
       /// \return whether the whole config is valid.
       bool validateRoms(const core::Configuration_t& config);
+
+      /// \return whether the config is valid for the trunk only,
+      /// and fill validation-report.
+      bool validateTrunk(const core::Configuration_t& config,
+			 core::ValidationReportPtr_t& validationReport);
+
+      /// \return whether the config is valid for the trunk only
+      bool validateTrunk(const core::Configuration_t& config);
 
     public:
       /// CollisionValidation for the trunk

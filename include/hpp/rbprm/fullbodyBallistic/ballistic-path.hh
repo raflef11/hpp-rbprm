@@ -161,9 +161,8 @@ namespace hpp {
 
       /// Set the three parabola coefficients
       void coefficients (core::vector_t coefs) const {
-	assert (coefs.size () == 4);
-	for (std::size_t i = 0; i < 4; i++)
-	  coefficients_(i) = coefs (i);
+	for (std::size_t i = 0; i < coefs.size () ; i++)
+	  coefficients_ (i) = coefs (i);
       }
 
       /// Get parabola coefficients

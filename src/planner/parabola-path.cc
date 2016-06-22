@@ -40,18 +40,44 @@ namespace hpp {
                                 vector_t coefs) :
       parent_t (interval_t (0, length), device->configSize (),
                 device->numberDof ()), device_ (device), initial_ (init),
-      end_ (end), coefficients_ (vector_t(4)), length_ (length),
+      end_ (end), coefficients_ (vector_t(coefs.size ())), length_ (length),
       V0_ (vector_t(3)), Vimp_ (vector_t(3))
     {
       assert (device);
       coefficients (coefs);
+      initialROMnames_.reserve (10);
+      endROMnames_.reserve (10);
+    }
+
+    ParabolaPath::ParabolaPath (const core::DevicePtr_t& device,
+                                core::ConfigurationIn_t init,
+                                core::ConfigurationIn_t end,
+                                value_type length,
+                                vector_t coefs,
+				vector_t V0, vector_t Vimp,
+				std::vector <std::string> initialROMnames,
+				std::vector <std::string> endROMnames) :
+      parent_t (interval_t (0, length), device->configSize (),
+                device->numberDof ()), device_ (device), initial_ (init),
+      end_ (end), coefficients_ (vector_t(coefs.size ())), length_ (length),
+      V0_ (V0), Vimp_ (Vimp), initialROMnames_ (initialROMnames),
+      endROMnames_ (endROMnames)
+    {
+      assert (device);
+      coefficients (coefs);
+      hppDout (info, "V0_= " << V0_.transpose () << " Vimp_= " << Vimp_.transpose ());
+      hppDout (info, "initialROMnames size= " << initialROMnames_.size ());
     }
 
     ParabolaPath::ParabolaPath (const ParabolaPath& path) :
       parent_t (path), device_ (path.device_), initial_ (path.initial_),
       end_ (path.end_), coefficients_ (path.coefficients_),
-      length_ (path.length_), V0_ (path.V0_), Vimp_ (path.Vimp_)
+      length_ (path.length_), V0_ (path.V0_), Vimp_ (path.Vimp_),
+      initialROMnames_ (path.initialROMnames_),
+      endROMnames_ (path.endROMnames_)
     {
+      hppDout (info, "V0_= " << V0_.transpose () << " Vimp_= " << Vimp_.transpose ());
+      hppDout (info, "initialROMnames size= " << initialROMnames_.size ());
     }
 
     bool ParabolaPath::impl_compute (core::ConfigurationOut_t result,
@@ -61,7 +87,7 @@ namespace hpp {
         result = initial_;
         return true;
       }
-      if (param == length_) {
+      if (param >= length_) {
         result = end_;
         return true;
       }
@@ -112,30 +138,40 @@ namespace hpp {
 	  result (i) = (1 - u) * initial_ (i) + u * end_ (i);
 	}
       }
+
+      /* Set to zero extra-configs (only on path, not on extremities */
+      const std::size_t indexECS = nbConfig - ecsDim;
+      for (std::size_t i = 0; i < ecsDim; i++)
+	result (indexECS + i) = 0;
       return true;
     }
 
 
     core::PathPtr_t ParabolaPath::extract (const interval_t& subInterval) const throw (hpp::core::projection_error)
     {
+      hppDout (error, "path extract is not recommended on parabola path");
       bool success;
       core::Configuration_t q1 ((*this) (subInterval.first, success)); // straight
       core::Configuration_t q2 ((*this) (subInterval.second, success)); // straight
-      ParabolaPathPtr_t result = rbprm::ParabolaPath::create(device_,q1,q2,computeLength(q1,q2),coefficients_);
-      (*result).V0_ = (*this).V0_;
-      (*result).Vimp_ = (*this).Vimp_;
+      ParabolaPathPtr_t result = rbprm::ParabolaPath::create(device_,q1,q2,computeLength(q1,q2),coefficients_, V0_, Vimp_, initialROMnames_, endROMnames_);
+      hppDout (info, "initialROMnames size= " << (*result).initialROMnames_.size ());
       return result;
     }
 
     core::PathPtr_t ParabolaPath::reverse () const{
-      hppDout(notice, "reverse path parabola !!!!!!!!!!!!!!!!!!!!!!!!");
+      hppDout(notice, " ~ reverse path parabola !!!!!!!!!!!!!!!!!!!!!!");
       bool success;
       core::Configuration_t q1 ((*this) (length_, success));
       core::Configuration_t q2 ((*this) (0, success));
       ParabolaPathPtr_t result = ParabolaPath::create (device_, q1, q2, length_,
-						       coefficients_);
-      (*result).V0_ = (*this).V0_;
-      (*result).Vimp_ = (*this).Vimp_;
+						       coefficients_, Vimp_,
+						       V0_, endROMnames_,
+						       initialROMnames_);
+      hppDout (info, "V0_= " << V0_.transpose () << " Vimp_= " << Vimp_.transpose ());
+      hppDout (info, "result V0_= " << (*result).V0_.transpose () << " result Vimp_= " << (*result).Vimp_.transpose ());
+      hppDout (info, "path->initialROMnames size= " << (*result).initialROMnames_.size ());
+      hppDout (info, "this->initialROMnames size= " << (*this).initialROMnames_.size ());
+      hppDout (info, "result->initialROMnames size= " << (*result).initialROMnames_.size ());
       return result;
     }
 
@@ -168,7 +204,7 @@ namespace hpp {
                        + 0.166666667*lengthFunction (x1 + (i+1)*dx ));
         // apparently, 1/6 and 2/3 are not recognized as floats ...
       }
-      hppDout (notice, "length = " << length);
+      //hppDout (notice, "length = " << length);
       return length;
     }
 
@@ -179,6 +215,23 @@ namespace hpp {
                                  * (2*coefficients_ (0)*x+coefficients_(1)));
       return y;
     }
+
+    vector_t ParabolaPath::evaluateVelocity (const value_type t) const {
+      vector_t vel (3);
+      bool success;
+      const value_type theta = coefficients_(3);
+      const value_type alpha = coefficients_(4);
+      const value_type x_theta_0_dot = coefficients_(5);
+      const value_type inv_x_theta_0_dot_sq = 1/(x_theta_0_dot*x_theta_0_dot);
+      const value_type x_theta_0 = coefficients_(6);
+      const core::Configuration_t q = (*this) (t, success);
+      const value_type x_theta = q [0]*cos(theta) + q [1]*sin(theta);
+      vel [0] = x_theta_0_dot * cos(theta);
+      vel [1] = x_theta_0_dot * sin(theta);
+      vel [2] = x_theta_0_dot * (-9.81 * (x_theta - x_theta_0)*inv_x_theta_0_dot_sq + tan(alpha));
+      return vel;
+    }
+
   } //   namespace rbprm
 } // namespace hpp
 

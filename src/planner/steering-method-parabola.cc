@@ -21,11 +21,13 @@
 # include <hpp/model/joint.hh>
 # include <hpp/model/joint-configuration.hh>
 # include <hpp/model/configuration.hh>
+# include <hpp/core/config-validations.hh>
 # include <hpp/core/path-validation.hh>
 # include <hpp/core/path-vector.hh>
 # include <hpp/core/problem.hh>
 # include <hpp/rbprm/planner/parabola-path.hh>
 # include <hpp/rbprm/planner/steering-method-parabola.hh>
+# include <hpp/rbprm/rbprm-device.hh>
 # include <hpp/rbprm/rbprm-path-validation.hh>
 # include <hpp/rbprm/rbprm-validation-report.hh>
 
@@ -68,12 +70,18 @@ namespace hpp {
     SteeringMethodParabola::compute_3D_path (core::ConfigurationIn_t q1,
 					     core::ConfigurationIn_t q2) 
       const {
+      std::vector<std::string> filter;
+      core::PathPtr_t validPart;
       const core::PathValidationPtr_t pathValidation
 	(problem_->pathValidation ());
       RbPrmPathValidationPtr_t rbPathValidation = boost::dynamic_pointer_cast<RbPrmPathValidation>(pathValidation);
-      std::vector<std::string> filter;
-      core::PathValidationReportPtr_t report;
-      core::PathPtr_t validPart;
+      model::RbPrmDevicePtr_t rbDevice =
+	boost::dynamic_pointer_cast<model::RbPrmDevice> (device_.lock ());
+      core::PathValidationReportPtr_t pathReport;
+      if (!rbDevice)
+	hppDout (error, "Device cannot be cast");
+      if (!rbPathValidation)
+	hppDout (error, "PathValidation cannot be cast");
 
       /* Define some constants */
       const size_type index = device_.lock ()->configSize()
@@ -169,27 +177,27 @@ namespace hpp {
       value_type alpha_lim_minus;
       bool fail = second_constraint (X_theta, Z, &alpha_lim_plus,
 				     &alpha_lim_minus);
-      hppDout (info, "alpha_lim_plus: " << alpha_lim_plus);
-      hppDout (info, "alpha_lim_minus: " << alpha_lim_minus);
-
       if (fail) {
 	hppDout (info, "failed to apply 2nd constraint");
 	problem_->parabolaResults_ [3] ++;
 	return core::PathPtr_t ();
       }
 
+      hppDout (info, "alpha_lim_plus: " << alpha_lim_plus);
+      hppDout (info, "alpha_lim_minus: " << alpha_lim_minus);
+
       value_type alpha_imp_plus;
       value_type alpha_imp_minus;
       bool fail6 = sixth_constraint (X_theta, Z, &alpha_imp_plus,
 				     &alpha_imp_minus);
-      hppDout (info, "alpha_imp_plus: " << alpha_imp_plus);
-      hppDout (info, "alpha_imp_minus: " << alpha_imp_minus);
-
       if (fail6) {
 	hppDout (info, "failed to apply 6th constraint");
 	problem_->parabolaResults_ [3] ++;
 	return core::PathPtr_t ();
       }
+
+      hppDout (info, "alpha_imp_plus: " << alpha_imp_plus);
+      hppDout (info, "alpha_imp_minus: " << alpha_imp_minus);
 
       value_type alpha_imp_inf;
       value_type alpha_imp_sup;
@@ -274,16 +282,28 @@ namespace hpp {
       maxHeightRespected = parabMaxHeightRespected (coefs, x_theta_0,
 						    x_theta_imp);
 
+      // fill ROM report, loop on ROM
+      initialROMnames_.clear (); endROMnames_.clear ();
+      fillROMnames (q1, &initialROMnames_);
+      fillROMnames (q2, &endROMnames_);
+      hppDout (info, "initialROMnames_ size= " << initialROMnames_.size ());
+      hppDout (info, "endROMnames_ size= " << endROMnames_.size ());
+    
       // parabola path with alpha_0 as the middle of alpha_0 bounds
       ParabolaPathPtr_t pp = ParabolaPath::create (device_.lock(), q1, q2,
 						   computeLength (q1, q2,coefs),
-						   coefs);
-      pp->V0_ = V0_;
-      pp->Vimp_ = Vimp_;
+						   coefs, V0_, Vimp_,
+						   initialROMnames_,
+						   endROMnames_);
+      // checks
       hppDout (info, "pp->V0_= " << pp->V0_);
       hppDout (info, "pp->Vimp_= " << pp->Vimp_);
-      //bool hasCollisions = !rbPathValidation->validate (pp, false, validPart, report, filter); // DEBUG
-      bool hasCollisions = false;
+      hppDout (info, "pp->initialROMnames_ size= " << pp->initialROMnames_.size ());
+      hppDout (info, "pp->endROMnames_ size= " << pp->endROMnames_.size ());
+
+      bool hasCollisions = !rbPathValidation->validateTrunk (pp, false,
+							     validPart,
+							     pathReport);
       std::size_t n = 0;
       if (hasCollisions || !maxHeightRespected) {
 	problem_->parabolaResults_ [0] ++; // not increased during dichotomy
@@ -292,12 +312,14 @@ namespace hpp {
 	  alpha = dichotomy (alpha_inf_bound, alpha_sup_bound, n);
 	  hppDout (info, "alpha= " << alpha);
 	  coefs = computeCoefficients (alpha, theta, X_theta, Z, x_theta_0,z_0);
-	  pp->V0_ = V0_; pp->Vimp_ = Vimp_;
 	  maxHeightRespected = parabMaxHeightRespected (coefs, x_theta_0,
 							x_theta_imp);
 	  pp = ParabolaPath::create (device_.lock (), q1, q2,
-				     computeLength (q1, q2, coefs), coefs);
-	  //hasCollisions = !rbPathValidation->validate (pp, false, validPart, report, filter); // DEBUG
+				     computeLength (q1, q2, coefs), coefs, V0_,
+				     Vimp_, initialROMnames_, endROMnames_);
+	  hasCollisions = !rbPathValidation->validateTrunk (pp, false,
+							    validPart,
+							    pathReport);
 	  hppDout (info, "Dichotomy iteration: " << n);
 	  n++;
 	}//while
@@ -688,7 +710,7 @@ namespace hpp {
     (const value_type alpha, const value_type theta,
      const value_type X_theta, const value_type Z,
      const value_type x_theta_0, const value_type z_0) const {
-      vector_t coefs (4);
+      vector_t coefs (7);
       const value_type x_theta_0_dot = sqrt((g_ * X_theta * X_theta)
 					    /(2 * (X_theta*tan(alpha) - Z)));
       const value_type inv_x_th_dot_0_sq = 1/(x_theta_0_dot*x_theta_0_dot);
@@ -697,6 +719,9 @@ namespace hpp {
       coefs (2) = z_0 - tan(alpha)*x_theta_0 -
 	0.5*g_*x_theta_0*x_theta_0*inv_x_th_dot_0_sq;
       coefs (3) = theta;
+      coefs (4) = alpha;
+      coefs (5) = x_theta_0_dot;
+      coefs (6) = x_theta_0;
       // Also compute initial and final velocities
       const value_type V0 = sqrt((1 + tan(alpha)*tan(alpha))) * x_theta_0_dot;
       const value_type Vimp = sqrt(1 + (-g_*X_theta*inv_x_th_dot_0_sq+tan(alpha)) *(-g_*X_theta*inv_x_th_dot_0_sq+tan(alpha))) * x_theta_0_dot;
@@ -741,6 +766,24 @@ namespace hpp {
       }
       alpha = e*a_plus + (1-e)*a_inf;
       return alpha;
+    }
+
+    void SteeringMethodParabola::fillROMnames
+    (core::ConfigurationIn_t q, std::vector <std::string> * ROMnames) const {
+      core::ValidationReportPtr_t report;
+      const core::Configuration_t config = q;
+      problem_->configValidations()->validate(config, report);
+      core::RbprmValidationReportPtr_t rbReport =
+	boost::dynamic_pointer_cast<core::RbprmValidationReport> (report);
+      if(!rbReport)
+	hppDout(error,"Validation Report cannot be cast");
+      hppDout (info, "nbROM= " << rbReport->ROMReports.size());
+      for (std::map<std::string,core::CollisionValidationReportPtr_t>::const_iterator it = rbReport->ROMReports.begin(); it != rbReport->ROMReports.end(); it++) {
+	std::string ROMname = it->first;
+	hppDout (info, "ROMname= " << ROMname);
+	(*ROMnames).push_back (ROMname);
+
+      }
     }
 
   } // namespace rbprm

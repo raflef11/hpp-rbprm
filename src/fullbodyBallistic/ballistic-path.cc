@@ -40,7 +40,7 @@ namespace hpp {
 				  vector_t coefs) :
       parent_t (interval_t (0, length), device->configSize (),
                 device->numberDof ()), device_ (device), initial_ (init),
-      end_ (end), coefficients_ (vector_t(4)), length_ (length)
+      end_ (end), coefficients_ (vector_t(coefs.size ())), length_ (length)
     {
       assert (device);
       coefficients (coefs);
@@ -60,7 +60,7 @@ namespace hpp {
         result = initial_;
         return true;
       }
-      if (param == length_) {
+      if (param >= length_) {
         result = end_;
         return true;
       }

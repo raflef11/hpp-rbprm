@@ -24,6 +24,7 @@
 #include <hpp/core/collision-validation.hh>
 #include <Eigen/Geometry>
 #include <hpp/model/configuration.hh>
+#include <hpp/rbprm/fullbodyBallistic/parabola-library.hh>
 
 namespace hpp {
 using namespace core;
@@ -197,7 +198,7 @@ namespace
         srand (seed);
         hppDout(notice,"&&&&&& SEED = "<<seed);
 */
-        srand (0);
+      srand (0);
 
         RbPrmShooter* ptr = new RbPrmShooter (robot, geometries, filter, normalFilters, shootLimit, displacementLimit, nbFilterMatch);
         RbPrmShooterPtr_t shPtr (ptr);
@@ -232,6 +233,7 @@ namespace
       , robot_ (robot)
       , validator_(rbprm::RbPrmValidation::create(robot_, filter, normalFilters, nbFilterMatch))
       , eulerSo3_(initSo3())
+      , fullOrientationMode_ (false)
     {
       hppDout (info, "constructor RbPrmShooter");
       for (std::size_t i = 0; i < filter_.size (); i++) {
@@ -263,9 +265,7 @@ namespace
                 double weight = TriangleArea(tri);
                 sum += weight;
                 weights_.push_back(weight);
-                //fcl::Vec3f normal = (tri.p2 - tri.p1).cross(tri.p3 - tri.p1); // steve/pierre -> conflict with lastDirection in shoot()
-		//hppDout (info, "normal_test" << normal_test);
-		fcl::Vec3f normal = (tri.p3 - tri.p1).cross(tri.p2 - tri.p1);
+                fcl::Vec3f normal = (tri.p2 - tri.p1).cross(tri.p3 - tri.p1);
                 normal.normalize();
                 triangles_.push_back(std::make_pair(normal,tri));
             }
@@ -288,6 +288,7 @@ namespace
   const RbPrmShooter::T_TriangleNormal& RbPrmShooter::WeightedTriangle() const
   {
       double r = ((double) rand() / (RAND_MAX));
+      hppDout (info, "r= " << r);
       std::vector<T_TriangleNormal>::const_iterator trit = triangles_.begin();
       for(std::vector<double>::const_iterator wit = weights_.begin();
           wit != weights_.end();
@@ -300,16 +301,26 @@ namespace
 
 hpp::core::ConfigurationPtr_t RbPrmShooter::shoot () const
 {
+    const size_type extraDim = robot_->extraConfigSpace ().dimension ();
+    const size_type index = robot_->configSize() - extraDim;
+    const bool hasECS = extraDim >= 3;
     JointVector_t jv = robot_->getJointVector ();
     ConfigurationPtr_t config (new Configuration_t (robot_->Device::currentConfiguration()));
     std::size_t limit = shootLimit_;
     bool found(false);
-    while(limit >0 && !found)
+    CollisionValidationReport* report;
+    ValidationReportPtr_t reportShPtr(new CollisionValidationReport);
+    value_type thetaSample = 0;
+    Vec3f normal;
+    hppDout (info, "fullOrientationMode in shooter= " << fullOrientationMode_);
+    bool valid = false;
+    while(limit >0 && (!found || !valid))
     {
         // pick one triangle randomly
         const T_TriangleNormal* sampled(0);
         double r = ((double) rand() / (RAND_MAX));
-        if(r > 0.3)
+	hppDout (info, "r= " << r);
+        if(r > 0.5)
             sampled = &RandomPointIntriangle();
         else
             sampled = &WeightedTriangle();
@@ -319,26 +330,60 @@ hpp::core::ConfigurationPtr_t RbPrmShooter::shoot () const
         r1 = ((double) rand() / (RAND_MAX)); r2 = ((double) rand() / (RAND_MAX));
         Vec3f p = (1 - sqrt(r1)) * tri.p1 + (sqrt(r1) * (1 - r2)) * tri.p2
                 + (sqrt(r1) * r2) * tri.p3;
-
+	hppDout (info, "r1= " << r1);
+	hppDout (info, "r2= " << r2);
+	hppDout (info, "p= " << p);
+	// get normal even if not in collision...
+	normal = (tri.p2 - tri.p1).cross(tri.p3 - tri.p1);
+	normal.normalize();
+	hppDout (info, "normal= " << normal);
         //set configuration position to sampled point
         SetConfigTranslation(robot_,config, p);
-        SampleRotation(eulerSo3_, config, jv);
+	//hppDout (info, "config= " << displayConfig (*config));
+	if (hasECS && fullOrientationMode_) {
+	  if (!validator_->trunkValidation_->validate(*config, reportShPtr)) {
+	    report = static_cast<CollisionValidationReport*>(reportShPtr.get());
+	    Vec3f normal_test = triangles_[report->result.getContact(0).b2].first;
+	    hppDout (info, "normal_test= " << normal_test);
+	  }
+	  for (size_type i=0; i<3; i++) (*config) [index + i] = normal [i];
+	  thetaSample = 2 * M_PI * rand ()/RAND_MAX - M_PI;
+	  (*config) [index + 3] = thetaSample;
+	  *config = setOrientation (robot_, *config);
+	}
+	else {
+	  SampleRotation(eulerSo3_, config, jv);
+	  hppDout (info, "random rotation was sampled");
+	}
+	//hppDout (info, "config= " << displayConfig (*config));
         // rotate and translate randomly until valid configuration found or
         // no obstacle is reachable
-        ValidationReportPtr_t reportShPtr(new CollisionValidationReport);
         std::size_t limitDis = displacementLimit_;
-        Vec3f lastDirection(1,0,0);
+        Vec3f lastDirection = normal; // will be updated if necessary
         while(!found && limitDis >0)
         {
-            bool valid = validator_->trunkValidation_->validate(*config, reportShPtr);
-            CollisionValidationReport* report = static_cast<CollisionValidationReport*>(reportShPtr.get());
+            valid = validator_->trunkValidation_->validate(*config, reportShPtr);
+            report = static_cast<CollisionValidationReport*>(reportShPtr.get());
             found = valid && validator_->validateRoms(*config, filter_);
             if(valid &!found)
             {
                 // try to rotate to reach rom
                 for(; limitDis>0 && !found; --limitDis)
                 {
-                    SampleRotation(eulerSo3_, config, jv);
+		  //SampleRotation(eulerSo3_, config, jv);
+		  if (hasECS && fullOrientationMode_) {
+		    thetaSample = 2 * M_PI * rand ()/RAND_MAX - M_PI;
+		    hppDout (info, "thetaSample= " << thetaSample);
+		    for (size_type i=0; i<3; ++i)
+		      (*config) [index + i] = normal [i];
+		    (*config) [index + 3] = thetaSample;
+		    *config = setOrientation (robot_, *config);
+		    hppDout (info, "normal= " << normal);
+		  } else {
+		    SampleRotation(eulerSo3_, config, jv);
+		    hppDout (info, "random rotation was sampled");
+		  }
+		  //hppDout (info, "config= " << displayConfig(*config));
                     found = validator_->validate(*config, filter_);
                     if(!found)
                     {
@@ -363,9 +408,7 @@ hpp::core::ConfigurationPtr_t RbPrmShooter::shoot () const
             }
         }
         // Shoot extra configuration variables
-        size_type extraDim = robot_->extraConfigSpace ().dimension ();
-        size_type offset = robot_->configSize () - extraDim;
-        for (size_type i=0; i<extraDim; ++i)
+        /*for (size_type i=0; i<extraDim; ++i)
         {
             value_type lower = robot_->extraConfigSpace ().lower (i);
             value_type upper = robot_->extraConfigSpace ().upper (i);
@@ -378,15 +421,18 @@ hpp::core::ConfigurationPtr_t RbPrmShooter::shoot () const
                 oss << i << ". min = " << ", max = " << upper << std::endl;
                 throw std::runtime_error (oss.str ());
             }
-            (*config) [offset + i] = (upper - lower) * rand ()/RAND_MAX;
+            (*config) [index + i] = (upper - lower) * rand ()/RAND_MAX + lower;
         }
+	*/
         // save the normal (code from Mylène)
         if(extraDim >= 3 ){
-          size_type index = robot_->configSize() - extraDim;
+	  hppDout (info, "lastDirection= " << lastDirection);
           for (size_type i=0; i<3; ++i)
-            (*config) [index + i] = -lastDirection [i];
-	  (*config) [index + 3] = 0; // theta for orientation along path
-        }
+            (*config) [index + i] = lastDirection [i];
+	  if (fullOrientationMode_)
+	    *config = setOrientation (robot_, *config);
+	  }
+	valid = validator_->trunkValidation_->validate(*config, reportShPtr);
         limit--;
     }
     if (!found) std::cout << "no config found" << std::endl;

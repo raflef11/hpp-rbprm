@@ -38,7 +38,15 @@ namespace hpp {
       static RbPrmPathValidationPtr_t create (const core::DevicePtr_t& robot, const core::value_type& stepSize);
 
       /// validate with custom filter for the rom validation
-      virtual bool validate (const core::PathPtr_t& path, bool reverse, core::PathPtr_t& validPart,			     core::PathValidationReportPtr_t& report,const std::vector<std::string>& filter);
+      virtual bool validate (const core::PathPtr_t& path, bool reverse,
+			     core::PathPtr_t& validPart,
+			     core::PathValidationReportPtr_t& report,
+			     const std::vector<std::string>& filter);
+
+      /// validate the path for the trunk only
+      virtual bool validateTrunk (const core::PathPtr_t& path,
+				  bool reverse, core::PathPtr_t& validPart,
+				  core::PathValidationReportPtr_t& report);
 
       /// Add a configuration validation object
       virtual void add (const core::ConfigValidationPtr_t& configValidation);
