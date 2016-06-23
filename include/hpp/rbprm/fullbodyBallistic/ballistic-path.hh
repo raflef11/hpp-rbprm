@@ -166,9 +166,12 @@ namespace hpp {
       }
 
       /// Get parabola coefficients
-     core::vector_t coefficients () const {
+      core::vector_t coefficients () const {
 	return coefficients_;
       }
+
+      core::value_type computeLength (const core::ConfigurationIn_t q1,
+				      const core::ConfigurationIn_t q2) const;
 
     protected:
       /// Print path in a stream
@@ -189,9 +192,6 @@ namespace hpp {
 
       /// Copy constructor
       BallisticPath (const BallisticPath& Ballisticpath);
-
-      core::value_type computeLength (const core::ConfigurationIn_t q1,
-				      const core::ConfigurationIn_t q2) const;
 
       core::value_type lengthFunction (const core::value_type x)const;
 

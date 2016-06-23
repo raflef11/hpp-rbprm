@@ -83,11 +83,12 @@ namespace hpp {
     }
 
     Configuration_t BallisticInterpolation::fillConfiguration
-    (Configuration_t config, std::size_t configSize)
+    (const Configuration_t config, const std::size_t configSize)
     {
       Configuration_t result (configSize);
-      std::size_t trunkSize = config.size ();
-      std::size_t ecsSize = robot_->device_->extraConfigSpace ().dimension ();
+      const std::size_t trunkSize = config.size ();
+      const std::size_t ecsSize = 
+	robot_->device_->extraConfigSpace ().dimension ();
       hppDout (info, "original config= " << displayConfig (config));
       for (std::size_t j = 0; j < configSize - ecsSize; j++) {
 	if (j < trunkSize)
@@ -99,6 +100,29 @@ namespace hpp {
       hppDout (info, "ecs size in fillConfiguration= " << ecsSize);
       for (std::size_t k = 0; k < ecsSize; k++)
 	result [configSize - ecsSize + k] = config [trunkSize - ecsSize + k];
+      hppDout (info, "filled config= " << displayConfig (result));
+      return result;
+    }
+
+    Configuration_t BallisticInterpolation::fillConfiguration
+    (const Configuration_t trunkConfig, const Configuration_t refConfig)
+    {
+      Configuration_t result (refConfig.rows ());
+      const std::size_t configSize = refConfig.rows ();
+      const std::size_t trunkSize = trunkConfig.size ();
+      const std::size_t ecsSize = 
+	robot_->device_->extraConfigSpace ().dimension ();
+      hppDout (info, "original config= " << displayConfig (trunkConfig));
+      for (std::size_t j = 0; j < configSize - ecsSize; j++) {
+	if (j < trunkSize)
+	  result [j] = trunkConfig [j];
+	else
+	  result [j] = refConfig [j];
+      }
+      // copy extra-configs of trunk at the end of the config
+      hppDout (info, "ecs size in fillConfiguration= " << ecsSize);
+      for (std::size_t k = 0; k < ecsSize; k++)
+	result[configSize - ecsSize + k] = trunkConfig[trunkSize - ecsSize + k];
       hppDout (info, "filled config= " << displayConfig (result));
       return result;
     }
@@ -152,6 +176,74 @@ namespace hpp {
       return activeLimbs;
     }
 
+    Configuration_t BallisticInterpolation::computeOffsetContactConfig
+    (const core::PathPtr_t subpath, const State previousState,
+     value_type* u_offset, const bool decrease_u_offset,
+     const std::size_t maxIter, const value_type alpha) {
+      Configuration_t q_trunk_offset, q_contact_offset;
+      core::DevicePtr_t robot = robot_->device_;
+      bool success, contact_OK = false, multipleBreaks, contactMaintained;
+      std::size_t iteration = 0;
+      fcl::Vec3f dir;
+      State state;
+      const value_type pathLength = subpath->length ();
+      ParabolaPathPtr_t pp = 
+	boost::dynamic_pointer_cast<ParabolaPath>(subpath);
+      std::map<std::string,core::CollisionValidationPtr_t> limbColVal = robot_->getLimbcollisionValidations ();
+
+      while (!contact_OK && iteration < maxIter) { 
+	  iteration++;
+	  hppDout (info, "iteration= " << iteration);
+	  hppDout (info, "u_offset= " << *u_offset);
+	  q_trunk_offset = (*subpath) (*u_offset * pathLength, success);
+	  hppDout (info, "q_trunk_offset= " << displayConfig (q_trunk_offset));
+	  dir = pp->evaluateVelocity (*u_offset * pathLength);
+
+	  state = MaintainPreviousContacts (previousState, limbColVal, fillConfiguration (q_trunk_offset, robot->configSize ()), contactMaintained, multipleBreaks, 0);
+	  q_contact_offset = state.configuration_;
+	  hppDout (info, "q_contact_offset= " << displayConfig (q_contact_offset));
+	  hppDout (info, "contactMaintained = " << contactMaintained);
+	  hppDout (info, "multipleBreaks = " << multipleBreaks);
+	  contact_OK = !multipleBreaks;
+	  if (!contact_OK) {
+	    if (decrease_u_offset)
+	      *u_offset = *u_offset * alpha;
+	    else
+	      *u_offset = 1-(1-*u_offset)*alpha;
+	  }//if contact
+      }//while
+	hppDout (info, "u_offset= " << *u_offset);
+	return q_contact_offset;
+    }
+
+    Configuration_t BallisticInterpolation::computeTopExtendingPose 
+    (const core::PathPtr_t path, const BallisticPathPtr_t bp) {
+      bool success;
+      ParabolaPathPtr_t pp = boost::dynamic_pointer_cast<ParabolaPath>(path);
+      const vector_t coefs = pp->coefficients ();
+      const value_type pathLength = path->length();
+      const Configuration_t init = (*path) (0, success);
+      const Configuration_t end = (*path) (pathLength, success);
+      const value_type theta = coefs (3);
+      const value_type x_theta_max = - 0.5 * coefs (1) / coefs (0);
+      const value_type x_theta_init = cos(theta)*init (0) + sin(theta)*init (1);
+      const value_type x_theta_end = cos(theta)*end (0) + sin(theta)*end (1);
+      const value_type u_max = (x_theta_max - x_theta_init)
+	/ (x_theta_end - x_theta_init); // in [0,1]
+      core::Configuration_t q_filled_max;
+      
+      if (extendingPose_.rows () > 0) {
+      const core::Configuration_t q_trunk_max = (*path) (u_max*pathLength, success);
+      q_filled_max = fillConfiguration (q_trunk_max, extendingPose_);
+      hppDout (info, "q_trunk_max" << displayConfig(q_trunk_max));
+      hppDout (info, "extendingPose_" << displayConfig(extendingPose_));
+      } else {
+	q_filled_max = (*bp) (u_max*pathLength, success);
+      }
+      hppDout (info, "q_filled_max" << displayConfig(q_filled_max));
+      return q_filled_max;
+    }
+
 // ========================================================================
     
     /*std::vector<Configuration_t>
@@ -193,8 +285,8 @@ namespace hpp {
 	q1contact (robot->configSize ()), q2contact (robot->configSize ());
       Configuration_t q_trunk_offset1, q_trunk_offset2, qcof1, qcof2,
 	q_contact_offset1, q_contact_offset2, q_contact_offset_full1,
-	q_contact_offset_full2;
-      BallisticPathPtr_t bp, bp1, bp2, bp3;
+	q_contact_offset_full2, q_max;
+      BallisticPathPtr_t bp, bp1, bp3, bp1max, bp2max;
       const model::ObjectVector_t &collisionObjects =
 	problem_.collisionObstacles();
       hppDout (info, "u_offset= " << u_offset);
@@ -207,7 +299,6 @@ namespace hpp {
       core::PathPtr_t subpath = path_->pathAtRank (0);
       State state, state1, state2;
       bool success;
-      bool multipleBreaks, contactMaintained; //contacts broken
       value_type u_offset1 = u_offset, u_offset2 = 1-u_offset;
 
       std::map<std::string,core::CollisionValidationPtr_t> limbColVal = robot_->getLimbcollisionValidations ();
@@ -241,54 +332,11 @@ namespace hpp {
 	hppDout (info, "q2contact= " << displayConfig(q2contact));
 	hppDout (info, "q1contact= " << displayConfig(q1contact));
 
-	/* Offset contact positions */
-	bool contact1_OK = false, contact2_OK = false;
-	std::size_t iteration = 0;
-	while (!contact1_OK && iteration < 10) { 
-	  iteration++;
-	  hppDout (info, "iteration_1= " << iteration);
-	  hppDout (info, "u_offset1= " << u_offset1);
-	  q_trunk_offset1 = (*subpath) (u_offset1*pathLength,success);
-	  hppDout (info, "q_trunk_offset1= " << displayConfig (q_trunk_offset1));
-	  dir = pp->evaluateVelocity (u_offset*pathLength);
-	  // TODO: replace by something that keeps same contacts
-	  //state = ComputeContacts(robot_, fillConfiguration (q_trunk_offset1, robot->configSize ()), collisionObjects, dir);
-	  state = MaintainPreviousContacts (state1, limbColVal, fillConfiguration (q_trunk_offset1, robot->configSize ()), contactMaintained, multipleBreaks, 0);
-	  //state = MaintainPreviousContacts (state1, limbColVal, q1contact, contactMaintained, multipleBreaks, 0); // DEBUG
-	  q_contact_offset1 = state.configuration_;
-	  hppDout (info, "q_contact_offset1= " << displayConfig (q_contact_offset1));
-	  hppDout (info, "contactMaintained = " << contactMaintained);
-	  hppDout (info, "multipleBreaks = " << multipleBreaks);
-	  contact1_OK = !multipleBreaks;
-	  if (!contact1_OK)
-	    u_offset1 = u_offset1*0.8;
-	}
-	hppDout (info, "u_offset1= " << u_offset1);
-
-	iteration = 0;
-	while (!contact2_OK && iteration < 10) { 
-	  iteration++;
-	  hppDout (info, "iteration_2= " << iteration);
-	  q_trunk_offset2 = (*subpath) (u_offset2*pathLength,success);
-	  hppDout (info, "q_trunk_offset2= " << displayConfig (q_trunk_offset2));
-	  dir = - pp->evaluateVelocity ((1-u_offset)*pathLength);
-	  // TODO: replace by something that keeps same contacts
-	  //state = ComputeContacts(robot_, fillConfiguration (q_trunk_offset2, robot->configSize ()), collisionObjects, dir);
-	  state = MaintainPreviousContacts (state2, limbColVal, fillConfiguration (q_trunk_offset2, robot->configSize ()), contactMaintained, multipleBreaks, 0);
-	  q_contact_offset2 = state.configuration_;
-	  hppDout (info, "q_contact_offset2= " << displayConfig (q_contact_offset2));
-	  hppDout (info, "contactMaintained = " << contactMaintained);
-	  hppDout (info, "multipleBreaks = " << multipleBreaks);
-	  contact2_OK = !multipleBreaks;
-	  if (!contact2_OK) {
-	    u_offset2 = 1-(1-u_offset2)*0.8;
-	    hppDout (info, "u_offset2= " << u_offset2);
-	  }
-	}
-	hppDout (info, "u_offset2= " << u_offset2);
+	q_contact_offset1 = computeOffsetContactConfig (subpath, state1, &u_offset1, true);
+	q_contact_offset2 = computeOffsetContactConfig (subpath, state2, &u_offset2, false);
 	
-
 	bp = Interpolate (q1contact, q2contact, pathLength, subpath->coefficients ());
+	q_max = computeTopExtendingPose (subpath, bp);
 	
 	q_contact_offset_full1 = (*bp) (u_offset1*pathLength,success);
 	q_contact_offset_full2 = (*bp) (u_offset2*pathLength,success);
@@ -304,19 +352,23 @@ namespace hpp {
 	qcof2 = replaceLimbConfigsInFullConfig (q_contact_offset_full2,
 						q_contact_offset2,
 						activeLimbsEnd);
-	hppDout (info, "parabola length test, full= " << subpath->length () << ", partial1= " << pp->computeLength (q1contact, qcof1) << ", partial2= " << pp->computeLength (qcof1, qcof2) << ", partial3= " << pp->computeLength (qcof2, q2contact));
 
 	bp1 = Interpolate (q1contact, qcof1,
 			   pp->computeLength (q1contact, qcof1),
 			   subpath->coefficients ());
-	bp2 = Interpolate (qcof1, qcof2, pp->computeLength (qcof1, qcof2),
-			   subpath->coefficients ());
+	bp1max = Interpolate (qcof1, q_max, pp->computeLength (qcof1, q_max),
+			      subpath->coefficients ());
+	bp2max = Interpolate (q_max, qcof2, pp->computeLength (q_max, qcof2),
+			      subpath->coefficients ());
 	bp3 = Interpolate (qcof2, q2contact,
 			   pp->computeLength (qcof2, q2contact),
 			   subpath->coefficients ());
 
+	hppDout (info, "parabola length test, full= " << subpath->length () << ", bpartial1= " << bp1->computeLength (qStart, qcof1) << ", bpartial1max= " << bp1max->computeLength (qcof1, q_max) << ", bpartial2max= " << bp2max->computeLength (q_max, qcof2) << ", bpartial3= " << bp3->computeLength (qcof2, qEnd));
+
 	newPath->appendPath (bp1);
-	newPath->appendPath (bp2);
+	newPath->appendPath (bp1max);
+	newPath->appendPath (bp2max);
 	newPath->appendPath (bp3);
 	subpath = subpath_next;
 	pp = boost::dynamic_pointer_cast<ParabolaPath>(subpath);
@@ -327,53 +379,12 @@ namespace hpp {
 	  q2contact = qEnd;
 	  state2 = end_;
 
-	  /* Offset contact positions */
-	  iteration = 0;
-	  while (!contact1_OK && iteration < 10) { 
-	    iteration++;
-	    hppDout (info, "iteration_1= " << iteration);
-	    hppDout (info, "u_offset1= " << u_offset1);
-	    q_trunk_offset1 = (*subpath) (u_offset1*pathLength,success);
-	    hppDout (info, "q_trunk_offset1= " << displayConfig (q_trunk_offset1));
-	    dir = pp->evaluateVelocity (u_offset*pathLength);
-	    // TODO: replace by something that keeps same contacts
-	    //state = ComputeContacts(robot_, fillConfiguration (q_trunk_offset1, robot->configSize ()), collisionObjects, dir);
-	    state = MaintainPreviousContacts (state1, limbColVal, fillConfiguration (q_trunk_offset1, robot->configSize ()), contactMaintained, multipleBreaks, 0);
-	    //state = MaintainPreviousContacts (state1, limbColVal, q1contact, contactMaintained, multipleBreaks, 0); // DEBUG
-	    q_contact_offset1 = state.configuration_;
-	    hppDout (info, "q_contact_offset1= " << displayConfig (q_contact_offset1));
-	    hppDout (info, "contactMaintained = " << contactMaintained);
-	    hppDout (info, "multipleBreaks = " << multipleBreaks);
-	    contact1_OK = !multipleBreaks;
-	    if (!contact1_OK)
-	      u_offset1 = u_offset1*0.8;
-	  }
-	  hppDout (info, "u_offset1= " << u_offset1);
-
-	  iteration = 0;
-	  while (!contact2_OK && iteration < 10) { 
-	    iteration++;
-	    hppDout (info, "iteration_2= " << iteration);
-	    q_trunk_offset2 = (*subpath) (u_offset2*pathLength,success);
-	    hppDout (info, "q_trunk_offset2= " << displayConfig (q_trunk_offset2));
-	    dir = - pp->evaluateVelocity ((1-u_offset)*pathLength);
-	    // TODO: replace by something that keeps same contacts
-	    //state = ComputeContacts(robot_, fillConfiguration (q_trunk_offset2, robot->configSize ()), collisionObjects, dir);
-	    state = MaintainPreviousContacts (state2, limbColVal, fillConfiguration (q_trunk_offset2, robot->configSize ()), contactMaintained, multipleBreaks, 0);
-	    q_contact_offset2 = state.configuration_;
-	    hppDout (info, "q_contact_offset2= " << displayConfig (q_contact_offset2));
-	    hppDout (info, "contactMaintained = " << contactMaintained);
-	    hppDout (info, "multipleBreaks = " << multipleBreaks);
-	    contact2_OK = !multipleBreaks;
-	    if (!contact2_OK) {
-	      u_offset2 = 1-(1-u_offset2)*0.8;
-	      hppDout (info, "u_offset2= " << u_offset2);
-	    }
-	  }
-	  hppDout (info, "u_offset2= " << u_offset2);
+	  q_contact_offset1 = computeOffsetContactConfig (subpath, state1, &u_offset1, true);
+	  q_contact_offset2 = computeOffsetContactConfig (subpath, state2, &u_offset2, false);
 
 	  bp = Interpolate (q1contact, q2contact, subpath->length (),
 			    subpath->coefficients ());
+	  q_max = computeTopExtendingPose (subpath, bp);
 	  q_contact_offset_full1 = (*bp) (u_offset*pathLength,success);
 	  q_contact_offset_full2 = (*bp) ((1-u_offset)*pathLength,success);
 	  std::vector <RbPrmLimbPtr_t> activeLimbsStart = activeLimbsFromROMs
@@ -386,23 +397,24 @@ namespace hpp {
 	  qcof2 = replaceLimbConfigsInFullConfig (q_contact_offset_full2,
 						  q_contact_offset2,
 						  activeLimbsEnd);
-	  hppDout (info, "parabola length test, full= " << subpath->length () << ", partial1= " << pp->computeLength (q1contact, qcof1) << ", partial2= " << pp->computeLength (qcof1, qcof2) << ", partial3= " << pp->computeLength (qcof2, q2contact));
 
 	  bp1 = Interpolate (q1contact, qcof1,
 			     pp->computeLength (q1contact, qcof1),
 			     subpath->coefficients ());
-	  bp2 = Interpolate (qcof1, qcof2, pp->computeLength (qcof1, qcof2),
-			     subpath->coefficients ());
+	  bp1max = Interpolate (qcof1, q_max, pp->computeLength (qcof1, q_max),
+				subpath->coefficients ());
+	  bp2max = Interpolate (q_max, qcof2, pp->computeLength (q_max, qcof2),
+			      subpath->coefficients ());
 	  bp3 = Interpolate (qcof2, q2contact,
 			     pp->computeLength (qcof2, q2contact),
 			     subpath->coefficients ());
 
 	  newPath->appendPath (bp1);
-	  newPath->appendPath (bp2);
+	  newPath->appendPath (bp1max);
+	  newPath->appendPath (bp2max);
 	  newPath->appendPath (bp3);
 	}//if final subpath
       }// for subpaths
-      //assert (false);
       return newPath;
     }
 
@@ -417,41 +429,29 @@ namespace hpp {
 	q1contact (robot->configSize ()), q2contact (robot->configSize ());
       Configuration_t q_trunk_offset1, q_trunk_offset2, qcof1, qcof2,
 	q_contact_offset1, q_contact_offset2, q_contact_offset_full1,
-	q_contact_offset_full2;
-      BallisticPathPtr_t bp, bp1, bp2, bp3;
-      const model::ObjectVector_t &collisionObjects =
-	problem_.collisionObstacles();
-      hppDout (info, "u_offset= " << u_offset);
-      const std::size_t subPathNumber = path_->numberPaths ();
-      hppDout (info, "number of sub-paths: " << subPathNumber);
+	q_contact_offset_full2, q_max;
+      BallisticPathPtr_t bp, bp1, bp3, bp1max, bp2max;
       core::PathVectorPtr_t newPath = core::PathVector::create 
 	(robot->configSize (), robot->numberDof ());
       robot_->noStability_ = true; // disable stability for waypoints
       vector_t V0 (3), Vimp (3); fcl::Vec3f dir;
       State state;
       bool success;
+      value_type u_offset1 = u_offset, u_offset2 = 1-u_offset;
 
       const core::PathPtr_t path = path_->pathAtRank (0);
       const ParabolaPathPtr_t pp = 
 	boost::dynamic_pointer_cast<ParabolaPath>(path);
       const value_type pathLength = path->length ();
       const vector_t pathCoefs = path->coefficients ();
-      q_trunk_offset1 = (*path) (u_offset*pathLength,success);
-      q_trunk_offset2 = (*path) ((1-u_offset)*pathLength,success);
-      hppDout (info, "q_trunk_offset1= " << displayConfig (q_trunk_offset1));
-      hppDout (info, "q_trunk_offset2= " << displayConfig (q_trunk_offset2));
-      dir = pp->evaluateVelocity (u_offset*pathLength);
-      state = ComputeContacts(robot_, fillConfiguration (q_trunk_offset1, robot->configSize ()), collisionObjects, dir);
-      q_contact_offset1 = state.configuration_;
-      hppDout (info, "q_contact_offset1= " << displayConfig (q_contact_offset1));
-      dir = - pp->evaluateVelocity ((1-u_offset)*pathLength);		
-      state = ComputeContacts(robot_, fillConfiguration (q_trunk_offset2, robot->configSize ()), collisionObjects, dir);
-      q_contact_offset2 = state.configuration_;
-      hppDout (info, "q_contact_offset2= " << displayConfig (q_contact_offset2));
 
+      q_contact_offset1 = computeOffsetContactConfig (path, start_, &u_offset1, true, 5);
+      q_contact_offset2 = computeOffsetContactConfig (path, end_, &u_offset2, false, 5);
+      
       bp = Interpolate (qStart, qEnd, pathLength, pathCoefs);
-      q_contact_offset_full1 = (*bp) (u_offset*pathLength,success);
-      q_contact_offset_full2 = (*bp) ((1-u_offset)*pathLength,success);
+      q_max = computeTopExtendingPose (path, bp);
+      q_contact_offset_full1 = (*bp) (u_offset1*pathLength,success);
+      q_contact_offset_full2 = (*bp) (u_offset2*pathLength,success);
       hppDout (info, "q_full_offset1= " << displayConfig (q_contact_offset_full1));
       hppDout (info, "q_full_offset2= " << displayConfig (q_contact_offset_full2));
       std::vector <RbPrmLimbPtr_t> activeLimbsStart = activeLimbsFromROMs
@@ -461,22 +461,26 @@ namespace hpp {
       qcof1 = replaceLimbConfigsInFullConfig (q_contact_offset_full1,
 					      q_contact_offset1,
 					      activeLimbsStart);
-      qcof2 = replaceLimbConfigsInFullConfig (q_contact_offset_full1,
-					      q_contact_offset1,
+      qcof2 = replaceLimbConfigsInFullConfig (q_contact_offset_full2,
+					      q_contact_offset2,
 					      activeLimbsEnd);
       hppDout (info, "parabola length test, full= " << path->length () << ", partial1= " << pp->computeLength (qStart, qcof1) << ", partial2= " << pp->computeLength (qcof1, qcof2) << ", partial3= " << pp->computeLength (qcof2, qEnd));
 
 	bp1 = Interpolate (qStart, qcof1, pp->computeLength (qStart, qcof1),
 			   pathCoefs);
-	bp2 = Interpolate (qcof1, qcof2, pp->computeLength (qcof1, qcof2),
+	bp1max = Interpolate (qcof1, q_max, pp->computeLength (qcof1, q_max),
 			   pathCoefs);
+	bp2max = Interpolate (q_max, qcof2, pp->computeLength (q_max, qcof2),
+			      pathCoefs);
 	bp3 = Interpolate (qcof2, qEnd, pp->computeLength (qcof2, qEnd),
 			   pathCoefs);
 
-	newPath->appendPath (bp1);
-	newPath->appendPath (bp2);
-	newPath->appendPath (bp3);
+	hppDout (info, "parabola length test, full= " << path->length () << ", bpartial1= " << bp1->computeLength (qStart, qcof1) << ", bpartial1max= " << bp1max->computeLength (qcof1, q_max) << ", bpartial2max= " << bp2max->computeLength (q_max, qcof2) << ", bpartial3= " << bp3->computeLength (qcof2, qEnd));
 
+	newPath->appendPath (bp1);
+	newPath->appendPath (bp1max);
+	newPath->appendPath (bp2max);
+	newPath->appendPath (bp3);
       return newPath;
     }
 

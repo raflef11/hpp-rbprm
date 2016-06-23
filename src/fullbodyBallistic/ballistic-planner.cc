@@ -83,23 +83,30 @@ namespace hpp {
 
       // shoot a RB-valid random configuration using rbprm-shooter
       core::ConfigurationPtr_t q_rand;
-      bool valid = false;
+      core::Configuration_t q_tmp;
       core::ValidationReportPtr_t report;
       
-      while (!valid) {
       hppDout(notice,"# oneStep BEGIN");
       q_rand = configurationShooter_->shoot ();
       hppDout (info, "q_rand: " << displayConfig (*q_rand));
       computeGIWC(*q_rand);
-      for (std::size_t i = 0; i < 3; i++)
-      (*q_rand) [i + indexECS] = contactNormalAverage_ [i];
-	hppDout (info, "q_rand after giwc: " << displayConfig (*q_rand));
-	*q_rand = setOrientation (robot, *q_rand); // update with new normal
-	hppDout (info, "q_rand after setOrient: " << displayConfig (*q_rand));
-	valid = problem ().configValidations()->validate(*q_rand,report);
-	if (!valid)
-	  hppDout (info, "giwc normal + setOrientation => not valid");
+      if (contactNormalAverage_.size () > 0) {
+	// contactNormalAverage_ correctly computed and can be used
+	// else, keep previous normal in extra-config
+	for (std::size_t i = 0; i < 3; i++)
+	  (*q_rand) [i + indexECS] = contactNormalAverage_ [i];
       }
+      else
+	hppDout (info, "contactNormalAverage_ could not be computed");
+      hppDout (info, "q_rand after giwc: " << displayConfig (*q_rand));
+      
+      // update q_rand orientation with new normal IF it is valid
+      q_tmp = setOrientation (robot, *q_rand);
+      if (problem ().configValidations()->validate(q_tmp,report))
+	*q_rand = q_tmp;
+      else
+	hppDout (info, "giwc normal + setOrientation => not valid");
+      hppDout (info, "q_rand after setOrient: " << displayConfig (*q_rand));
 
       // Add q_rand as a new node: here for the parabola, as the impact node
       core::NodePtr_t impactNode = roadmap ()->addNode (q_rand);
@@ -257,7 +264,6 @@ namespace hpp {
 	      vertices1.push_back(Eigen::Vector3d(model1->vertices[i][0], model1->vertices[i][1], model1->vertices[i][2]));
 	      //hppDout(notice,"vertices : "<<model1->vertices[i]);
 	    }
-	  //std::cout<<ss1.str()<<std::endl;
         
         
 	  obj2->fcl();
@@ -269,7 +275,6 @@ namespace hpp {
 	      vertices2.push_back(Eigen::Vector3d(model2->vertices[i][0], model2->vertices[i][1], model2->vertices[i][2]));
 	      // hppDout(notice,"vertices : "<<model2->vertices[i]);
 	    }
-	  //std::cout<<ss2.str()<<std::endl;
         
 	  geom::T_Point hull = geom::intersectPolygonePlane(model1,model2,fcl::Vec3f(0,0,1),geom::ZJUMP,result);
 	  
@@ -282,10 +287,14 @@ namespace hpp {
 	  polytope::vector3_t normal,tangent0,tangent1;
 	  geom::Point center = geom::center(hull.begin(),hull.end());
 	  posContact.segment<3>(indexRom*3) = center;
-	  //std::cout<<center<<std::endl<<std::endl;
 	  polytope::rotation_t rot; 
 	  normal = -result.getContact(0).normal; // of contact surface
 	  hppDout(notice," !!! normal for GIWC : "<<normal);
+	  for (std::size_t i = 0; i < 3; i++) {
+	    normalAv [i] += normal [i]/nbNormalAv;
+	    hppDout (info, "normal [i]/nbNormalAv= " << normal [i]/nbNormalAv);
+	  }
+	  /* If giwc not computed (see error below), no need of this part
 	  // compute tangent vector : 
 	  tangent0 = normal.cross(polytope::vector3_t(1,0,0));
 	  if(tangent0.dot(tangent0)<0.001)
@@ -296,19 +305,15 @@ namespace hpp {
 	  rot(2,0) = tangent0(2) ; rot(2,1) = tangent1(2) ; rot(2,2) = normal(2);
         
 	  rotContact.block<3,3>(indexRom*3,0) = rot;
-	  //std::cout<<rot<<std::endl<<std::endl;
         
 	  indexRom++;
-	  for (std::size_t i = 0; i < 3; i++) {
-	    normalAv [i] += normal [i]/nbNormalAv;
-	    hppDout (info, "normal [i]/nbNormalAv= " << normal [i]/nbNormalAv);
-	  }
+	  */
 	} // for each ROMS
-      hppDout (info, "normalAv= " << normalAv);
       normalAv.normalize ();
       hppDout (info, "normed normalAv= " << normalAv);
       contactNormalAverage_ = normalAv;
       
+      /* If giwc not computed (see error below), no need of this part
       polytope::vector_t x(rbReport->ROMReports.size());
       polytope::vector_t y(rbReport->ROMReports.size());
       polytope::vector_t nu(rbReport->ROMReports.size());
@@ -320,7 +325,8 @@ namespace hpp {
         x(k) = xContact; // approx size of foot  (x length, y width)
         y(k) = yContact; 
         nu(k) = problem_->mu_;
-      }
+	}*/
+
       // save giwc in node structure
       // PROBLEM: when activating polytope::U_stance,
       // 'rand' in config-shooter always return the same values

@@ -130,9 +130,15 @@ namespace hpp {
       fcl::Vec3f computeDir (const core::vector_t V0,
 			     const core::vector_t Vimp);
 
-      /// Fill current config with 0 and copy ECS part
-      core::Configuration_t fillConfiguration (core::Configuration_t config,
-					       std::size_t configSize);
+      /// Fill current trunk-config with 0 for limbs, and copy ECS part
+      core::Configuration_t fillConfiguration
+	(const core::Configuration_t config, const std::size_t configSize);
+
+      /// Copy trunk and extra-config parts of trunkConfig, and
+      /// limbs part (the rest) of refConfig
+      core::Configuration_t fillConfiguration
+	(const core::Configuration_t trunkConfig,
+	 const core::Configuration_t refConfig);
 
       /// Compute the number of joints in the given limb (starting from limb
       /// and finishing to effector
@@ -171,6 +177,21 @@ namespace hpp {
 	 std::map<std::string,core::CollisionValidationPtr_t>& limbValidations,
 	 model::ConfigurationIn_t configuration, bool& contactMaintained,
 	 bool& multipleBreaks, const double robustnessTreshold);
+
+      /// Return the configuration based at u_offset on subpath, trying to 
+      /// apply same contacts as in previousState. u_offset is decreased 
+      /// (or increased) of alpha to get closer to previousState 
+      /// until maxIter is reached.
+      core::Configuration_t computeOffsetContactConfig
+	(const core::PathPtr_t subpath, const State previousState,
+	 core::value_type* u_offset, const bool decrease_u_offset,
+	 const std::size_t maxIter = 3, const core::value_type alpha = 0.65);
+
+      /// Return the configuration at the top of the parabola (path),
+      /// using extendingPose_ for limbs part if defined,
+      /// otherwise, just unsing interpolation (bp)
+      core::Configuration_t computeTopExtendingPose 
+	(const core::PathPtr_t path, const BallisticPathPtr_t bp);
       
     private:
       const core::Problem problem_;
