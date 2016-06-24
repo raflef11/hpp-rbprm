@@ -173,6 +173,9 @@ namespace hpp {
       core::value_type computeLength (const core::ConfigurationIn_t q1,
 				      const core::ConfigurationIn_t q2) const;
 
+      /// Evaluate velocity vector at path abcissa t
+      core::vector_t evaluateVelocity (const core::value_type t) const;
+
     protected:
       /// Print path in a stream
       virtual std::ostream& print (std::ostream &os) const

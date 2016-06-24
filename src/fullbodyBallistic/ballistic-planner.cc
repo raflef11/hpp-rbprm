@@ -90,7 +90,7 @@ namespace hpp {
       q_rand = configurationShooter_->shoot ();
       hppDout (info, "q_rand: " << displayConfig (*q_rand));
       computeGIWC(*q_rand);
-      if (contactNormalAverage_.size () > 0) {
+      if (contactNormalAverage_.norm () > 0.9) {
 	// contactNormalAverage_ correctly computed and can be used
 	// else, keep previous normal in extra-config
 	for (std::size_t i = 0; i < 3; i++)

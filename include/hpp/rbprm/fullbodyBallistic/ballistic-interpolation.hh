@@ -70,7 +70,9 @@ namespace hpp {
       /// states so that:
       /// the trunk is still following the parabola path
       /// the limbs are linearly interpolated
-      /// \param u_offset: normalized curvilinear abcissa of contact maintain
+      /// \param u_offset: normalized curvilinear abcissa of contact maintain 
+      /// for an cushion takeoff/landing. If u_offset = 0, this effect is
+      /// disable (TODO).
       core::PathVectorPtr_t InterpolateFullPath
 	(const core::value_type u_offset = 0);
 
@@ -79,8 +81,10 @@ namespace hpp {
       /// the trunk is still following the parabola path
       /// the limbs are linearly interpolated
       /// \param u_offset: normalized curvilinear abcissa of contact maintain
+      /// for an cushion takeoff/landing. If u_offset = 0, this effect is
+      /// disable (TODO).
       core::PathVectorPtr_t InterpolateDirectPath
-	(const core::value_type u_offset);
+	(const core::value_type u_offset = 0);
 
       /// Tranform the trunk path and the start-goal states so that:
       /// the trunk is still following the parabola path
@@ -176,16 +180,17 @@ namespace hpp {
 	(const State& previous,
 	 std::map<std::string,core::CollisionValidationPtr_t>& limbValidations,
 	 model::ConfigurationIn_t configuration, bool& contactMaintained,
-	 bool& multipleBreaks, const double robustnessTreshold);
+	 bool& multipleBreaks, std::vector <RbPrmLimbPtr_t>& successLimbs, const double robustnessTreshold = 0);
 
       /// Return the configuration based at u_offset on subpath, trying to 
       /// apply same contacts as in previousState. u_offset is decreased 
       /// (or increased) of alpha to get closer to previousState 
       /// until maxIter is reached.
       core::Configuration_t computeOffsetContactConfig
-	(const core::PathPtr_t subpath, const State previousState,
+	(const BallisticPathPtr_t bp,const core::PathPtr_t subpath,
+	 const State previousState,
 	 core::value_type* u_offset, const bool decrease_u_offset,
-	 const std::size_t maxIter = 3, const core::value_type alpha = 0.65);
+	 const std::size_t maxIter = 2, const core::value_type alpha = 0.6);
 
       /// Return the configuration at the top of the parabola (path),
       /// using extendingPose_ for limbs part if defined,

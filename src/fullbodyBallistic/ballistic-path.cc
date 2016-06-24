@@ -197,6 +197,23 @@ namespace hpp {
                                  * (2*coefficients_ (0)*x+coefficients_(1)));
       return y;
     }
+
+    vector_t BallisticPath::evaluateVelocity (const value_type t) const {
+      vector_t vel (3);
+      bool success;
+      const value_type theta = coefficients_(3);
+      const value_type alpha = coefficients_(4);
+      const value_type x_theta_0_dot = coefficients_(5);
+      const value_type inv_x_theta_0_dot_sq = 1/(x_theta_0_dot*x_theta_0_dot);
+      const value_type x_theta_0 = coefficients_(6);
+      const core::Configuration_t q = (*this) (t, success);
+      const value_type x_theta = q [0]*cos(theta) + q [1]*sin(theta);
+      vel [0] = x_theta_0_dot * cos(theta);
+      vel [1] = x_theta_0_dot * sin(theta);
+      vel [2] = x_theta_0_dot * (-9.81 * (x_theta - x_theta_0)*inv_x_theta_0_dot_sq + tan(alpha));
+      return vel;
+    }
+
   } //   namespace rbprm
 } // namespace hpp
 
