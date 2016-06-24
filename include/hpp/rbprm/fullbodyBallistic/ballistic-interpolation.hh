@@ -72,7 +72,7 @@ namespace hpp {
       /// the limbs are linearly interpolated
       /// \param u_offset: normalized curvilinear abcissa of contact maintain 
       /// for an cushion takeoff/landing. If u_offset = 0, this effect is
-      /// disable (TODO).
+      /// disable.
       core::PathVectorPtr_t InterpolateFullPath
 	(const core::value_type u_offset = 0);
 
@@ -82,7 +82,7 @@ namespace hpp {
       /// the limbs are linearly interpolated
       /// \param u_offset: normalized curvilinear abcissa of contact maintain
       /// for an cushion takeoff/landing. If u_offset = 0, this effect is
-      /// disable (TODO).
+      /// disable.
       core::PathVectorPtr_t InterpolateDirectPath
 	(const core::value_type u_offset = 0);
 
@@ -187,7 +187,7 @@ namespace hpp {
       /// (or increased) of alpha to get closer to previousState 
       /// until maxIter is reached.
       core::Configuration_t computeOffsetContactConfig
-	(const BallisticPathPtr_t bp,const core::PathPtr_t subpath,
+	(const BallisticPathPtr_t bp,
 	 const State previousState,
 	 core::value_type* u_offset, const bool decrease_u_offset,
 	 const std::size_t maxIter = 2, const core::value_type alpha = 0.6);

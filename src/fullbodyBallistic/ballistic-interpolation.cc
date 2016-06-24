@@ -179,7 +179,7 @@ namespace hpp {
     }
 
     Configuration_t BallisticInterpolation::computeOffsetContactConfig
-    (const BallisticPathPtr_t bp, const core::PathPtr_t subpath,
+    (const BallisticPathPtr_t bp,
      const State previousState, value_type* u_offset,
      const bool decrease_u_offset,
      const std::size_t maxIter, const value_type alpha) {
@@ -190,13 +190,17 @@ namespace hpp {
       fcl::Vec3f dir;
       State state;
       const value_type pathLength = bp->length ();
-      ParabolaPathPtr_t pp = 
-	boost::dynamic_pointer_cast<ParabolaPath>(subpath);
-      std::map<std::string,core::CollisionValidationPtr_t> limbColVal = robot_->getLimbcollisionValidations ();
+      std::map<std::string,core::CollisionValidationPtr_t> limbColVal = 
+	robot_->getLimbcollisionValidations ();
       std::vector <RbPrmLimbPtr_t> successLimbs;
-      //std::vector <RbPrmLimbPtr_t> activeLimbs = activeLimbsFromROMs (pp, decrease_u_offset); //takeoff/start if decrease_u_offset = true, end landing/otherwise
-      q_interp = (*bp) (*u_offset*pathLength, success);
 
+      q_interp = (*bp) (*u_offset*pathLength, success);
+      
+      if (*u_offset == 0) {
+	hppDout (info, "no cushion effect asked, return interpolated config");
+	return q_interp;
+      }
+      
       while (!contact_OK && iteration < maxIter) { 
 	  iteration++;
 	  successLimbs.clear ();
@@ -222,14 +226,12 @@ namespace hpp {
       hppDout (info, "u_offset= " << *u_offset);
 
       // replace limbs that are accurate:
-      // for the moment, replace limbs that are in common with ROMs in contact
-      // should take limb-configs from contact if contact succeeded, 
+      // take limb-configs from contact if contact succeeded, 
       // from interp otherwise.
       result = replaceLimbConfigsInFullConfig (q_interp,
 					       q_contact_offset,
 					       successLimbs);
-
-	return result;
+      return result;
     }
 
     Configuration_t BallisticInterpolation::computeTopExtendingPose 
@@ -356,8 +358,8 @@ namespace hpp {
 			      pp->computeLength (q_max, q2contact),
 			      subpath->coefficients ());
 
-	q_contact_offset1 = computeOffsetContactConfig (bp1max, subpath, state1, &u_offset1, true);
-	q_contact_offset2 = computeOffsetContactConfig (bp2max, subpath, state2, &u_offset2, false);
+	q_contact_offset1 = computeOffsetContactConfig (bp1max, state1, &u_offset1, true);
+	q_contact_offset2 = computeOffsetContactConfig (bp2max, state2, &u_offset2, false);
 
 	bp1 = Interpolate (q1contact, q_contact_offset1,
 			   pp->computeLength (q1contact, q_contact_offset1),
@@ -396,8 +398,8 @@ namespace hpp {
 				pp->computeLength (q_max, q2contact),
 				subpath->coefficients ());
 
-	  q_contact_offset1 = computeOffsetContactConfig (bp1max, subpath, state1, &u_offset1, true);
-	  q_contact_offset2 = computeOffsetContactConfig (bp2max, subpath, state2, &u_offset2, false);
+	  q_contact_offset1 = computeOffsetContactConfig (bp1max, state1, &u_offset1, true);
+	  q_contact_offset2 = computeOffsetContactConfig (bp2max, state2, &u_offset2, false);
 
 	  bp1 = Interpolate (q1contact, q_contact_offset1,
 			     pp->computeLength (q1contact, q_contact_offset1),
@@ -455,8 +457,8 @@ namespace hpp {
       bp2max = Interpolate (q_max, qEnd, pp->computeLength (q_max, qEnd),
 			    pathCoefs);
 
-      q_contact_offset1 = computeOffsetContactConfig (bp1max, path, start_, &u_offset1, true, 4);
-      q_contact_offset2 = computeOffsetContactConfig (bp2max, path, end_, &u_offset2, false, 4);
+      q_contact_offset1 = computeOffsetContactConfig (bp1max, start_, &u_offset1, true, 4);
+      q_contact_offset2 = computeOffsetContactConfig (bp2max, end_, &u_offset2, false, 4);
 
       bp1 = Interpolate (qStart, q_contact_offset1,
 			 pp->computeLength (qStart, q_contact_offset1),

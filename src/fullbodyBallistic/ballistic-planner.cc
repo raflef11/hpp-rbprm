@@ -76,9 +76,9 @@ namespace hpp {
     void BallisticPlanner::oneStep ()
     {
       core::DevicePtr_t robot (problem ().robot ());
-      core::PathPtr_t localPath;
+      core::PathPtr_t fwdPath, bwdPath;
       DelayedEdge_t fwdDelayedEdge, bwdDelayedEdge;
-      DelayedEdges_t fwdDelayedEdges;
+      DelayedEdges_t delayedEdges; // store valid forward and backward
       const size_type indexECS = robot->configSize () - robot->extraConfigSpace ().dimension ();
 
       // shoot a RB-valid random configuration using rbprm-shooter
@@ -129,30 +129,30 @@ namespace hpp {
 	    core::ConfigurationPtr_t qCC = (*n_it)->configuration ();
 	    hppDout (info, "qCC: " << displayConfig (*qCC));
 
-	    // Create forward local path from qCC to q_rand
-	    localPath = (*smParabola_) (*qCC, *q_rand);
+	    // Create forward and backward paths
+	    fwdPath = (*smParabola_) (*qCC, *q_rand);
+	    bwdPath = (*smParabola_) (*q_rand, *qCC);
+	    // if a path is returned (i.e. not null), then it is valid
 
-	    // if a forward path is returned, it is valid
-	    if (localPath) {
-	      // Save forward & backward delayed edges
-	      fwdDelayedEdge = DelayedEdge_t (*n_it, impactNode, localPath);
-	      fwdDelayedEdges.push_back (fwdDelayedEdge);
-		
-	      // Assuming that SM is symmetric (V0max = Vfmax)
-	      // WARN: I had to reverse *n_it - impNode HERE
-	      // to add edges consecutively to same vector fwdDelayedEdges
-	      bwdDelayedEdge = DelayedEdge_t (impactNode, *n_it,
-					      localPath->reverse ());
-	      fwdDelayedEdges.push_back (bwdDelayedEdge);
-	    } //if SM has returned a non-empty path
+	    if (fwdPath) {
+	      hppDout (info, "forward path is valid");
+	      fwdDelayedEdge = DelayedEdge_t (*n_it, impactNode, fwdPath);
+	      delayedEdges.push_back (fwdDelayedEdge);
+	    }
+
+	    if (bwdPath) {
+	      hppDout (info, "backward path is valid");
+	      bwdDelayedEdge = DelayedEdge_t (impactNode, *n_it, bwdPath);
+	      delayedEdges.push_back (bwdDelayedEdge);
+	    }
 	  }//for nodes in cc
 	}//avoid impactNode cc
       }//for cc in roadmap
 
       // Insert in roadmap all forward delayed edges (DE)
       bool avoidAddIdenticalEdge = true;
-      for (DelayedEdges_t::const_iterator itEdge = fwdDelayedEdges.begin ();
-	   itEdge != fwdDelayedEdges.end (); ++itEdge) {
+      for (DelayedEdges_t::const_iterator itEdge = delayedEdges.begin ();
+	   itEdge != delayedEdges.end (); ++itEdge) {
 	const core::NodePtr_t& nodeDE = itEdge-> get <0> ();
 	const core::NodePtr_t& node2DE = itEdge-> get <1> ();
 	const core::PathPtr_t& pathDE = itEdge-> get <2> ();
@@ -163,6 +163,7 @@ namespace hpp {
 		<< displayConfig (*(node2DE->configuration ())));
 	edge->indexInRM (roadmap ()->edgeIndex_);
 	// assure that forward and backward edges have same edgeIndex
+	// still kept for roadmap display (even if non-symmetric)
 	if (!avoidAddIdenticalEdge) {
 	  roadmap ()->edgeIndex_++;
 	  avoidAddIdenticalEdge = true;

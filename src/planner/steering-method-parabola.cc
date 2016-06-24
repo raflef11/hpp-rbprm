@@ -44,7 +44,8 @@ namespace hpp {
       SteeringMethod (problem), problem_ (problem),
       device_ (problem-> robot ()),
       distance_ (core::WeighedDistance::create (problem->robot())), weak_ (),
-      g_(9.81), V0max_ (problem->vmax_), Vimpmax_ (problem->vmax_),
+      g_(9.81), V0max_ (problem->vmaxTakeoff_),
+      Vimpmax_ (problem->vmaxLanding_),
       mu_ (problem->mu_), Dalpha_ (0.001), nLimit_ (6),initialConstraint_(true),
       V0_ (vector_t(3)), Vimp_ (vector_t(3))
      {
@@ -54,8 +55,8 @@ namespace hpp {
     core::PathPtr_t SteeringMethodParabola::impl_compute
     (core::ConfigurationIn_t q1, core::ConfigurationIn_t q2)
       const {
-      V0max_ = problem_->vmax_; // may have changed
-      Vimpmax_ = problem_->vmax_;
+      V0max_ = problem_->vmaxTakeoff_; // may have changed
+      Vimpmax_ = problem_->vmaxLanding_;
       mu_ = problem_->mu_;
       hppDout (info, "q_init: " << displayConfig (q1));
       hppDout (info, "q_goal: " << displayConfig (q2));
