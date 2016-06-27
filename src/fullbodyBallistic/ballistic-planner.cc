@@ -89,23 +89,23 @@ namespace hpp {
       hppDout(notice,"# oneStep BEGIN");
       q_rand = configurationShooter_->shoot ();
       hppDout (info, "q_rand: " << displayConfig (*q_rand));
-      computeGIWC(*q_rand);
-      if (contactNormalAverage_.norm () > 0.9) {
+      fcl::Vec3f normalAv = computeMiddleContacts (*q_rand);
+      if (normalAv.norm () > 0.9) {
 	// contactNormalAverage_ correctly computed and can be used
 	// else, keep previous normal in extra-config
 	for (std::size_t i = 0; i < 3; i++)
-	  (*q_rand) [i + indexECS] = contactNormalAverage_ [i];
+	  (*q_rand) [i + indexECS] = normalAv [i];
       }
       else
-	hppDout (info, "contactNormalAverage_ could not be computed");
-      hppDout (info, "q_rand after giwc: " << displayConfig (*q_rand));
+	hppDout (info, "contactNormalAverage could not be computed");
+      hppDout (info, "q_rand after avNormal: " << displayConfig (*q_rand));
       
       // update q_rand orientation with new normal IF it is valid
       q_tmp = setOrientation (robot, *q_rand);
       if (problem ().configValidations()->validate(q_tmp,report))
 	*q_rand = q_tmp;
       else
-	hppDout (info, "giwc normal + setOrientation => not valid");
+	hppDout (info, "average normal + setOrientation => not valid");
       hppDout (info, "q_rand after setOrient: " << displayConfig (*q_rand));
 
       // Add q_rand as a new node: here for the parabola, as the impact node
@@ -295,7 +295,6 @@ namespace hpp {
 	    normalAv [i] += normal [i]/nbNormalAv;
 	    hppDout (info, "normal [i]/nbNormalAv= " << normal [i]/nbNormalAv);
 	  }
-	  /* If giwc not computed (see error below), no need of this part
 	  // compute tangent vector : 
 	  tangent0 = normal.cross(polytope::vector3_t(1,0,0));
 	  if(tangent0.dot(tangent0)<0.001)
@@ -308,13 +307,8 @@ namespace hpp {
 	  rotContact.block<3,3>(indexRom*3,0) = rot;
         
 	  indexRom++;
-	  */
 	} // for each ROMS
-      normalAv.normalize ();
-      hppDout (info, "normed normalAv= " << normalAv);
-      contactNormalAverage_ = normalAv;
       
-      /* If giwc not computed (see error below), no need of this part
       polytope::vector_t x(rbReport->ROMReports.size());
       polytope::vector_t y(rbReport->ROMReports.size());
       polytope::vector_t nu(rbReport->ROMReports.size());
@@ -326,7 +320,7 @@ namespace hpp {
         x(k) = xContact; // approx size of foot  (x length, y width)
         y(k) = yContact; 
         nu(k) = problem_->mu_;
-	}*/
+	}
 
       // save giwc in node structure
       // PROBLEM: when activating polytope::U_stance,
@@ -335,6 +329,83 @@ namespace hpp {
       //hppDout (info, "giwc was computed");
       //const core::matrix_t& V = giwc->V;
     }// computeGIWC
+
+    fcl::Vec3f BallisticPlanner::computeMiddleContacts 
+(const core::Configuration_t q) const {
+      fcl::Vec3f normalAv (0,0,0);
+      core::ValidationReportPtr_t report;
+      const core::DevicePtr_t& robot (problem_->robot ());
+      model::RbPrmDevicePtr_t rbDevice =
+	boost::dynamic_pointer_cast<model::RbPrmDevice> (robot);
+      if (!rbDevice) {
+	hppDout(error,"~~ Device cast in RB problem");
+	return normalAv;
+      }
+
+      const bool isValid = problem ().configValidations()->validate(q,report);
+      if(!isValid) {
+	hppDout(warning,"~~ config is not valid");
+	return normalAv;
+      }
+      if (!report) {
+	hppDout(error,"~~ Report problem");
+	return normalAv;
+      }
+      core::RbprmValidationReportPtr_t rbReport =
+	boost::dynamic_pointer_cast<core::RbprmValidationReport> (report);
+      // checks :
+      if(!rbReport)
+	{
+	  hppDout(error,"~~ Validation Report cannot be cast");
+	  return normalAv;
+	}
+      
+      // get the 2 object in contact for each ROM :
+      hppDout(info,"~~ Number of roms in collision : "<<rbReport->ROMReports.size());
+      const std::size_t nbNormalAv = rbReport->ROMReports.size();
+      size_t indexRom = 0;
+      for(std::map<std::string,core::CollisionValidationReportPtr_t>::const_iterator it = rbReport->ROMReports.begin() ; it != rbReport->ROMReports.end() ; ++it)
+	{
+	  hppDout(info,"~~ for rom : "<<it->first);
+	  core::CollisionObjectPtr_t obj1 = it->second->object1;
+	  core::CollisionObjectPtr_t obj2 = it->second->object2;
+	  hppDout(notice,"~~ collision between : "<<obj1->name() << " and "<<obj2->name());
+	  fcl::CollisionResult result = it->second->result;
+        
+	  // get intersection between the two objects :
+	  obj1->fcl();
+	  geom::T_Point vertices1;
+	  geom::BVHModelOBConst_Ptr_t model1 =  geom::GetModel(obj1->fcl());
+	  for(int i = 0 ; i < model1->num_vertices ; ++i)
+	    {
+	      vertices1.push_back(Eigen::Vector3d(model1->vertices[i][0], model1->vertices[i][1], model1->vertices[i][2]));
+	    }
+        
+	  obj2->fcl();
+	  geom::T_Point vertices2;
+	  geom::BVHModelOBConst_Ptr_t model2 =  geom::GetModel(obj2->fcl());
+	  for(int i = 0 ; i < model2->num_vertices ; ++i)
+	    {
+	      vertices2.push_back(Eigen::Vector3d(model2->vertices[i][0], model2->vertices[i][1], model2->vertices[i][2]));
+	    }
+        
+	  geom::T_Point hull = geom::intersectPolygonePlane(model1,model2,fcl::Vec3f(0,0,1),geom::ZJUMP,result);
+	  
+	  if(hull.size() == 0){
+	    hppDout(error,"No intersection between rom and environnement");
+	    return normalAv;
+	  }
+
+	  geom::Point center = geom::center(hull.begin(),hull.end());
+	  polytope::vector3_t normal = -result.getContact(0).normal; // of contact surface
+	  for (std::size_t i = 0; i < 3; i++) {
+	    normalAv [i] += normal [i]/nbNormalAv;
+	  }
+	} // for each ROMS
+      normalAv.normalize ();
+      hppDout (info, "normed normalAv= " << normalAv);
+      return normalAv;
+    }
 
   } // namespace core
 } // namespace hpp

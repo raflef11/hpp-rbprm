@@ -201,6 +201,7 @@ namespace hpp {
 	return q_interp;
       }
       
+      fcl::Vec3f normalAv (0,0,0);
       while (!contact_OK && iteration < maxIter) { 
 	  iteration++;
 	  successLimbs.clear ();
@@ -209,8 +210,8 @@ namespace hpp {
 	  q_trunk_offset = (*bp) (*u_offset * pathLength, success);
 	  hppDout (info, "q_trunk_offset= " << displayConfig (q_trunk_offset));
 	  dir = bp->evaluateVelocity (*u_offset * pathLength);
-
-	  state = MaintainPreviousContacts (previousState, limbColVal, fillConfiguration (q_trunk_offset, robot->configSize ()), contactMaintained, multipleBreaks, successLimbs);
+	  normalAv = (0,0,0);
+	  state = MaintainPreviousContacts (previousState, limbColVal, fillConfiguration (q_trunk_offset, robot->configSize ()), contactMaintained, multipleBreaks, successLimbs, normalAv);
 	  q_contact_offset = state.configuration_;
 	  hppDout (info, "q_contact_offset= " << displayConfig (q_contact_offset));
 	  hppDout (info, "contactMaintained = " << contactMaintained);
@@ -223,6 +224,7 @@ namespace hpp {
 	      *u_offset = 1-(1-*u_offset)*alpha;
 	  }//if contact
       }//while
+      normalAvVec_.push_back(normalAv);
       hppDout (info, "u_offset= " << *u_offset);
 
       // replace limbs that are accurate:
@@ -248,21 +250,26 @@ namespace hpp {
       const value_type x_theta_end = cos(theta)*end (0) + sin(theta)*end (1);
       const value_type u_max = (x_theta_max - x_theta_init)
 	/ (x_theta_end - x_theta_init); // in [0,1]
+      const value_type z_x_theta_max = coefs (0)*x_theta_max*x_theta_max +
+	coefs (1)*x_theta_max + coefs (2);
       core::Configuration_t q_filled_max;
+
+      hppDout (info, "robot_->device->name ()= " << robot_->device_->name ());
       
-      if (extendingPose_.rows () > 0) {
-      const core::Configuration_t q_trunk_max = (*path) (u_max*pathLength, success);
-      q_filled_max = fillConfiguration (q_trunk_max, extendingPose_);
-      hppDout (info, "q_trunk_max" << displayConfig(q_trunk_max));
-      hppDout (info, "extendingPose_" << displayConfig(extendingPose_));
+      if (extendingPose_.rows () > 0 && !(robot_->device_->name ().compare ("ant") == 0 &&  z_x_theta_max > 0.4)) {
+	const core::Configuration_t q_trunk_max = (*path) (u_max*pathLength, success);
+	q_filled_max = fillConfiguration (q_trunk_max, extendingPose_);
+	hppDout (info, "q_trunk_max" << displayConfig(q_trunk_max));
+	hppDout (info, "extendingPose_" << displayConfig(extendingPose_));
       } else {
 	q_filled_max = (*bp) (u_max*pathLength, success);
+	hppDout (info, "ant extending frame too close to the floor or no extending pose");
       }
       hppDout (info, "q_filled_max" << displayConfig(q_filled_max));
       return q_filled_max;
     }
 
-// ========================================================================
+    // ========================================================================
     
     /*std::vector<Configuration_t>
     BallisticInterpolation::InterpolateConfigs (const double timeStep)
@@ -549,9 +556,10 @@ namespace hpp {
     (const State& previous,
      std::map<std::string,core::CollisionValidationPtr_t>& limbValidations,
      model::ConfigurationIn_t configuration, bool& contactMaintained,
-     bool& multipleBreaks, std::vector <RbPrmLimbPtr_t>& successLimbs, const double robustnessTreshold)
+     bool& multipleBreaks, std::vector <RbPrmLimbPtr_t>& successLimbs, fcl::Vec3f& normalAv, const double robustnessTreshold)
     {
       hppDout (info, "configuration" <<displayConfig(configuration));
+      std::vector <fcl::Vec3f> contactNormalsStack;
       multipleBreaks = false;
       contactMaintained = true;
       std::vector<std::string> brokenContacts;
@@ -596,6 +604,8 @@ namespace hpp {
 		  current.contactOrder_.push(name);
 		  current.configuration_ = config;
 		  successLimbs.push_back (limb);
+		  fcl::Vec3f normal = current.contactNormals_[name];
+		  contactNormalsStack.push_back (normal);
                 }
 	      else
                 {
@@ -627,8 +637,15 @@ namespace hpp {
 	  contactMaintained = false;
 	  multipleBreaks = true;
         }
+      normalAv = (0,0,0);
+      for (std::size_t i = 0; i < contactNormalsStack.size (); i++) {
+	fcl::Vec3f normal = contactNormalsStack [i];
+	for (std::size_t j = 0; j < 3; j++)
+	  normalAv [j] += normal [j]/contactNormalsStack.size ();
+      }
+      normalAv.normalize ();
+      hppDout (info, "normed normalAv= " << normalAv);
       return current;
       }
-
   } // model
 } //hpp

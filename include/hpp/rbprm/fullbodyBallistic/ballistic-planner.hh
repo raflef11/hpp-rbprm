@@ -101,6 +101,10 @@ namespace hpp {
        */
       void computeGIWC (const core::Configuration_t q);
 
+      /// return "average" direction of CoM cone, as average of contact cone 
+      /// directions, if these cones are in the middle of the contact areas
+      fcl::Vec3f computeMiddleContacts (const core::Configuration_t q) const;
+
       core::ProblemPtr_t problem_;
       core::ConfigurationShooterPtr_t configurationShooter_;
       BallisticPlannerWkPtr_t weakPtr_;
@@ -108,7 +112,6 @@ namespace hpp {
       core::RbprmRoadmapPtr_t rbRoadmap_;
       const core::RoadmapPtr_t roadmap_;
       const RbPrmFullBodyPtr_t fullRobot_; // for contact generation
-      fcl::Vec3f contactNormalAverage_; // "average" dir of CoM cone
       core::vector_t contactSize_; // should depend on the ROM
     };
     /// \}
