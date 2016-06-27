@@ -176,20 +176,26 @@ namespace hpp {
     {
       // call steering method here to build a direct conexion
       core::PathPtr_t path;
+      core::PathPtr_t fwdPath, bwdPath;      
       std::vector<std::string> filter;
       core::NodePtr_t initNode = roadmap ()->initNode();
       for (core::Nodes_t::const_iterator itn = roadmap ()->goalNodes ().begin();itn != roadmap ()->goalNodes ().end (); ++itn) {
         core::ConfigurationPtr_t q1 ((initNode)->configuration ());
         core::ConfigurationPtr_t q2 ((*itn)->configuration ());
         assert (*q1 != *q2);
-        path = (*smParabola_) (*q1, *q2);
-        if (path) { // has no collision
-	  hppDout(notice, "#### direct parabola path is valid !");
-	  roadmap ()->addEdge (initNode, *itn, path);
-	  roadmap ()->addEdge (*itn, initNode, path->reverse());
-	} else {
-	  hppDout(notice, "#### direct parabola path not valid !");
-	}
+        
+        // Create forward and backward paths
+        fwdPath = (*smParabola_) (*q1, *q2);
+        bwdPath = (*smParabola_) (*q2, *q1);
+        // if a path is returned (i.e. not null), then it is valid
+        if (fwdPath) {
+          hppDout (info, "forward path is valid");
+          roadmap ()->addEdge(initNode, *itn, fwdPath);
+        }
+        if (bwdPath) {
+          hppDout (info, "backward path is valid");
+          roadmap ()->addEdge(*itn, initNode, bwdPath);
+        }
       } //for qgoals
     }
 
