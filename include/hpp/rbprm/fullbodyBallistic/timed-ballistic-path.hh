@@ -60,11 +60,10 @@ namespace hpp {
                                              core::value_type length,
                                              value_type alpha,
                                              value_type theta,
-                                             value_type v0,
-                                             value_type z0)
+                                             value_type v0)
       {
         TimedBallisticPath* ptr = new TimedBallisticPath (device, init, end, length,
-                                                           alpha, theta, v0, z0);
+                                                           alpha, theta, v0);
         TimedBallisticPathPtr_t shPtr (ptr);
         ptr->init (shPtr);
         return shPtr;
@@ -73,6 +72,14 @@ namespace hpp {
       static TimedBallisticPathPtr_t create (const rbprm::BallisticPathPtr_t ballisticPath)
       {
         TimedBallisticPath* ptr = new TimedBallisticPath (ballisticPath);
+        TimedBallisticPathPtr_t shPtr (ptr);
+        ptr->init (shPtr);
+        return shPtr;
+      }
+      
+      static TimedBallisticPathPtr_t create (const BallisticPathPtr_t bp1,const BallisticPathPtr_t bp1Max,const BallisticPathPtr_t bp2Max,const BallisticPathPtr_t bp2)
+      {
+        TimedBallisticPath* ptr = new TimedBallisticPath (bp1,bp1Max,bp2Max,bp2);
         TimedBallisticPathPtr_t shPtr (ptr);
         ptr->init (shPtr);
         return shPtr;
@@ -197,11 +204,13 @@ namespace hpp {
                           core::ConfigurationIn_t end, core::value_type length,
                           value_type alpha,
                           value_type theta,
-                          value_type v0,
-                          value_type z0);
+                          value_type v0);
       
       
       TimedBallisticPath (const BallisticPathPtr_t ballisticPath);
+      
+      TimedBallisticPath (const BallisticPathPtr_t bp1,const BallisticPathPtr_t bp1Max,const BallisticPathPtr_t bp2Max,const BallisticPathPtr_t bp2);
+      
       
       /// Copy constructor
       TimedBallisticPath (const TimedBallisticPath& TimedBallisticPath);
@@ -237,8 +246,15 @@ namespace hpp {
       value_type alpha_;
       value_type theta_;
       value_type v0_;
-      value_type z0_;
       value_type g_;
+      value_type xTheta0_;
+      // we use the 4 subpath for joint interpolation
+      BallisticPathPtr_t bp1_;
+      BallisticPathPtr_t bp1Max_;
+      BallisticPathPtr_t bp2Max_;
+      BallisticPathPtr_t bp2_;
+      value_type t1_,t1Max_,t2Max_,t2_;
+      
     }; // class TimedBallisticPath
   } //   namespace rbprm
 } // namespace hpp
