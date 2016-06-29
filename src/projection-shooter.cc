@@ -16,6 +16,7 @@
 // hpp-core  If not, see
 // <http://www.gnu.org/licenses/>.
 
+# include <hpp/rbprm/projection-shooter.hh>
 # include <sstream>
 # include <hpp/util/debug.hh>
 # include <fcl/distance.h>
@@ -28,7 +29,6 @@
 # include <hpp/core/config-validations.hh>
 # include <hpp/core/distance-between-objects.hh>
 # include <hpp/rbprm/fullbodyBallistic/parabola-library.hh>
-# include <hpp/rbprm/projection-shooter.hh>
 # include <hpp/rbprm/rbprm-validation.hh>
 # include <hpp/rbprm/rbprm-validation-report.hh>
 

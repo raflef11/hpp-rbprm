@@ -199,9 +199,9 @@ namespace hpp {
       /// Evaluate velocity vector at path abcissa t
       core::vector_t evaluateVelocity (const core::value_type t) const;
 
-      core::value_type alpha_; // chosen alpha in intervalle
-      core::value_type alphaMin_; // min bound of alpha intervalle
-      core::value_type alphaMax_; // max bound of alpha intervalle
+      core::value_type alpha_; // chosen alpha in interval
+      core::value_type alphaMin_; // min bound of alpha interval
+      core::value_type alphaMax_; // max bound of alpha interval
       core::value_type Xtheta_;   
       core::value_type Z_;
       core::vector_t V0_; // initial velocity

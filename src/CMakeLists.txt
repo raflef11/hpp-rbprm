@@ -51,7 +51,10 @@ SET(${LIBRARY_NAME}_SOURCES
         planner/parabola-path.cc ${PROJECT_SOURCE_DIR}/include/hpp/rbprm/planner/parabola-path.hh
         projection-shooter.cc ${PROJECT_SOURCE_DIR}/include/hpp/rbprm/projection-shooter.hh
         fullbodyBallistic/ballistic-interpolation.cc ${PROJECT_SOURCE_DIR}/include/hpp/rbprm/fullbodyBallistic/ballistic-interpolation.hh
-        fullbodyBallistic/ballistic-path.cc ${PROJECT_SOURCE_DIR}/include/hpp/rbprm/fullbodyBallistic/ballistic-path.hh
+        fullbodyBallistic/ballistic-path.cc
+ ${PROJECT_SOURCE_DIR}/include/hpp/rbprm/fullbodyBallistic/ballistic-path.hh
+        fullbodyBallistic/timed-ballistic-path.cc
+ ${PROJECT_SOURCE_DIR}/include/hpp/rbprm/fullbodyBallistic/timed-ballistic-path.hh
         fullbodyBallistic/ballistic-planner.cc ${PROJECT_SOURCE_DIR}/include/hpp/rbprm/fullbodyBallistic/ballistic-planner.hh
 
   )
