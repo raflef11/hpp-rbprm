@@ -395,7 +395,7 @@ namespace hpp {
 	      vertices2.push_back(Eigen::Vector3d(model2->vertices[i][0], model2->vertices[i][1], model2->vertices[i][2]));
 	    }
         
-	  geom::T_Point hull = geom::intersectPolygonePlane(model1,model2,fcl::Vec3f(0,0,1),geom::ZJUMP,result);
+	  geom::T_Point hull = geom::intersectPolygonePlane(model1,model2,fcl::Vec3f(0,0,1),geom::ZJUMP,result,false,0.005); // do not set 2 last params if DEBUG groundcrouch (ZJUMP = 0)
 	  
 	  if(hull.size() == 0){
 	    hppDout(error,"No intersection between rom and environnement");

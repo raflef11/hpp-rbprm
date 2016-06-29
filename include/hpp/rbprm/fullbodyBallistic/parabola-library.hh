@@ -105,16 +105,21 @@ namespace hpp {
       //hppDout (info, "A: " << A);
       //hppDout (info, "A.determinant (): " << A.determinant ());
 
-      //fcl::Quaternion3f quat;
       Eigen::Quaternion<value_type> quat (A);
-      //quat.fromRotation (A);
-      //hppDout (info, "quat: " << quat);
-	
-      qtest [indexSO3] = quat.w (); // ORDER MAY BE WRONG
-      qtest [indexSO3 + 1] = quat.x ();
-      qtest [indexSO3 + 2] = quat.y ();
-      qtest [indexSO3 + 3] = quat.z ();
-      //hppDout (info, "qtest: " << displayConfig (qtest));
+      const value_type qw = quat.w ();
+      const value_type qx = quat.x ();
+      const value_type qy = quat.y ();
+      const value_type qz = quat.z ();
+      const value_type magnitude = sqrt(qw*qw + qx*qx + qy*qy + qz*qz);
+      hppDout (info, "quat: " << " " << qw << " " << qx << " " << qy << " " << qz);
+      hppDout (info, "quaternion magnitude= " << magnitude);
+      
+      // re-normalize (not needed but sometimes, loss of accuracy...)
+      qtest [indexSO3] = qw / magnitude;
+      qtest [indexSO3 + 1] = qx / magnitude;
+      qtest [indexSO3 + 2] = qy / magnitude;
+      qtest [indexSO3 + 3] = qz / magnitude;
+      hppDout (info, "qtest: " << displayConfig (qtest));
       return qtest;
     }
 
