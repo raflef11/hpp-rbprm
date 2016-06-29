@@ -171,7 +171,7 @@ namespace hpp {
       const value_type theta = coefficients_ (3);
       value_type x1 = cos(theta) * q1 (0)  + sin(theta) * q1 (1); // x_theta_0
       value_type x2 = cos(theta) * q2 (0) + sin(theta) * q2 (1); // x_theta_imp
-
+      hppDout(notice,"xTheta0 = "<<x1<<"   xThetaImp = "<<x2);
       // Define integration bounds
       if (x1 > x2) { // re-order integration bounds
         const value_type xtmp = x1;
