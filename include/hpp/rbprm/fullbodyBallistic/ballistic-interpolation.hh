@@ -115,10 +115,6 @@ namespace hpp {
       const State start_;
       const State end_;
 
-      const std::vector <fcl::Vec3f> getnormalAverageVec () {
-	return normalAvVec_;
-      }
-
     protected:
       BallisticInterpolation (const core::Problem& problem,
 			      const RbPrmFullBodyPtr_t robot,
@@ -184,7 +180,7 @@ namespace hpp {
 	(const State& previous,
 	 std::map<std::string,core::CollisionValidationPtr_t>& limbValidations,
 	 model::ConfigurationIn_t configuration, bool& contactMaintained,
-	 bool& multipleBreaks, std::vector <RbPrmLimbPtr_t>& successLimbs, fcl::Vec3f& normalAv, const double robustnessTreshold = 0);
+	 bool& multipleBreaks, std::vector <RbPrmLimbPtr_t>& successLimbs, const double robustnessTreshold = 0);
 
       /// Return the configuration based at u_offset on subpath, trying to 
       /// apply same contacts as in previousState. u_offset is decreased 
@@ -201,6 +197,12 @@ namespace hpp {
       /// otherwise, just unsing interpolation (bp)
       core::Configuration_t computeTopExtendingPose 
 	(const core::PathPtr_t path, const BallisticPathPtr_t bp);
+
+      /// Blend the two configurations with a as ratio:
+      /// result = r*q1 + (1-r)*q2
+      core::Configuration_t blendPoses (const core::Configuration_t q1,
+					const core::Configuration_t q2,
+					const core::value_type r);
       
     private:
       const core::Problem problem_;
@@ -208,7 +210,6 @@ namespace hpp {
       BallisticInterpolationWkPtr_t weakPtr_;
       core::Configuration_t extendingPose_;
       core::Configuration_t flexionPose_;
-      std::vector <fcl::Vec3f> normalAvVec_;
     }; // class BallisticInterpolation
   } // namespace rbprm
 } // namespace hpp
