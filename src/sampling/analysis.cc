@@ -184,10 +184,12 @@ namespace
     void distanceRec(const ConfigurationIn_t conf, const std::string& lastJoint, model::JointPtr_t currentJoint, double& currentDistance)
     {
         model::size_type rk = currentJoint->rankInConfiguration();
-        model::value_type lb = currentJoint->lowerBound(0), ub = currentJoint->upperBound(0);
-        model::value_type val = conf[rk];
-        val= (val - lb) * (ub - val) / ((ub - lb) * (ub - lb));
-        currentDistance = std::min(currentDistance, val);
+        if(currentJoint->configSize() > 0){
+          model::value_type lb = currentJoint->lowerBound(0), ub = currentJoint->upperBound(0);
+          model::value_type val = conf[rk];
+          val= (val - lb) * (ub - val) / ((ub - lb) * (ub - lb));
+          currentDistance = std::min(currentDistance, val);
+        }
         if(lastJoint == currentJoint->name())
             return;
         else return distanceRec(conf, lastJoint, currentJoint->childJoint(0),currentDistance);
@@ -212,6 +214,7 @@ namespace
         sampling::Load(sample,conf);
         distanceRec(conf, cit->second->effector_->name(), cit->second->limb_, distance);
         distance = 1 - exp(-5*distance);
+        
         return distance;
     }
 }
