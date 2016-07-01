@@ -379,30 +379,32 @@ namespace hpp {
 	  fcl::CollisionResult result = it->second->result;
         
 	  // get intersection between the two objects :
-	  obj1->fcl();
-	  geom::T_Point vertices1;
+	  //geom::T_Point vertices1; // debug display only
 	  geom::BVHModelOBConst_Ptr_t model1 =  geom::GetModel(obj1->fcl());
-	  for(int i = 0 ; i < model1->num_vertices ; ++i)
+	  /*for(int i = 0 ; i < model1->num_vertices ; ++i)
 	    {
 	      vertices1.push_back(Eigen::Vector3d(model1->vertices[i][0], model1->vertices[i][1], model1->vertices[i][2]));
-	    }
+	    }*/
         
-	  obj2->fcl();
-	  geom::T_Point vertices2;
+	 // geom::T_Point vertices2; // debug display only
 	  geom::BVHModelOBConst_Ptr_t model2 =  geom::GetModel(obj2->fcl());
-	  for(int i = 0 ; i < model2->num_vertices ; ++i)
+	 /* for(int i = 0 ; i < model2->num_vertices ; ++i)
 	    {
 	      vertices2.push_back(Eigen::Vector3d(model2->vertices[i][0], model2->vertices[i][1], model2->vertices[i][2]));
-	    }
+	    }*/
         
-	  geom::T_Point hull = geom::intersectPolygonePlane(model1,model2,fcl::Vec3f(0,0,1),geom::ZJUMP,result,false,0.005); // do not set 2 last params if DEBUG groundcrouch (ZJUMP = 0)
+	  geom::T_Point hull = geom::intersectPolygonePlane(model1,model2,-result.getContact(0).normal,0,result,false); // do not set 2 last params if DEBUG groundcrouch (ZJUMP = 0)
 	  
 	  if(hull.size() == 0){
 	    hppDout(error,"No intersection between rom and environnement");
-	    return normalAv;
-	  }
-
-	  geom::Point center = geom::center(hull.begin(),hull.end());
+	  }else{
+      geom::Point center = geom::center(hull.begin(),hull.end());
+      hppDout(notice,"Center = "<<center);
+    }
+    hppDout(info,"number of contacts : "<<result.numContacts());
+    for(size_t k ; k < result.numContacts() ; k++){
+        hppDout(info,"normal =  : "<<result.getContact(k).normal);
+      }
 	  polytope::vector3_t normal = -result.getContact(0).normal; // of contact surface
 	  for (std::size_t i = 0; i < 3; i++) {
 	    normalAv [i] += normal [i]/nbNormalAv;

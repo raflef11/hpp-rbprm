@@ -214,6 +214,7 @@ namespace
         sampling::Load(sample,conf);
         distanceRec(conf, cit->second->effector_->name(), cit->second->limb_, distance);
         distance = 1 - exp(-5*distance);
+        
         return distance;
     }
 }
