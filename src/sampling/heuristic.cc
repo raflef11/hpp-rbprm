@@ -77,7 +77,8 @@ double StaticHeuristic(const sampling::Sample& sample,
 
 HeuristicFactory::HeuristicFactory()
 {
-    srand ( (unsigned int) (time(NULL)) );
+    //srand ( (unsigned int) (time(NULL)) );
+    srand(0);
     heuristics_.insert(std::make_pair("static", &StaticHeuristic));
     heuristics_.insert(std::make_pair("EFORT", &EFORTHeuristic));
     heuristics_.insert(std::make_pair("EFORT_Normal", &EFORTNormalHeuristic));

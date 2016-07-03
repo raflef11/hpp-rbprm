@@ -594,8 +594,11 @@ else
 	    hppDout (info, "limb: " << lit->first);
             if(!ContactExistsWithinGroup(lit->second, body->limbGroups_ ,result))
 	      {
+                hppDout(info,"No Contact exist within group");
                 fcl::Vec3f normal, position;
                 ComputeStableContact(body,result,body->limbcollisionValidations_.at(lit->first), lit->first, lit->second, configuration, result.configuration_, collisionObjects, direction, position, normal, robustnessTreshold, true, false);
+            }else{
+                hppDout(info,"Contact exist within group");
             }
             result.nbContacts = result.contactNormals_.size();
         }
