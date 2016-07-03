@@ -178,15 +178,39 @@ namespace hpp {
 
     void BallisticPlanner::tryDirectPath ()
     {
-      // call steering method here to build a direct conexion
-      core::PathPtr_t path;
-      core::PathPtr_t fwdPath, bwdPath;      
-      std::vector<std::string> filter;
-      core::NodePtr_t initNode = roadmap ()->initNode();
+        // call steering method here to build a direct conexion
+        core::PathPtr_t path;
+        core::PathPtr_t fwdPath, bwdPath;
+        std::vector<std::string> filter;
+        core::NodePtr_t initNode = roadmap ()->initNode();
+        const size_type indexECS = problem().robot()->configSize () - problem().robot()->extraConfigSpace ().dimension ();
+
       for (core::Nodes_t::const_iterator itn = roadmap ()->goalNodes ().begin();itn != roadmap ()->goalNodes ().end (); ++itn) {
         core::ConfigurationPtr_t q1 ((initNode)->configuration ());
         core::ConfigurationPtr_t q2 ((*itn)->configuration ());
         assert (*q1 != *q2);
+
+        fcl::Vec3f normalAv = computeMiddleContacts (*q1);
+        if (normalAv.norm () > 0.9) {
+            // contactNormalAverage_ correctly computed and can be used
+            // else, keep previous normal in extra-config
+            for (std::size_t i = 0; i < 3; i++)
+                (*q1) [i + indexECS] = normalAv [i];
+        }
+        else
+            hppDout (info, "contactNormalAverage could not be computed");
+        normalAv = computeMiddleContacts (*q2);
+        if (normalAv.norm () > 0.9) {
+            // contactNormalAverage_ correctly computed and can be used
+            // else, keep previous normal in extra-config
+            for (std::size_t i = 0; i < 3; i++)
+                (*q2) [i + indexECS] = normalAv [i];
+        }
+        else
+            hppDout (info, "contactNormalAverage could not be computed");
+
+
+
         
         // Create forward and backward paths
         fwdPath = (*smParabola_) (*q1, *q2);
@@ -406,17 +430,18 @@ namespace hpp {
       hppDout(notice,"Center = "<<center);
     }
     hppDout(info,"number of contacts : "<<result.numContacts());
-    for(size_t k ; k < result.numContacts() ; k++){
-        hppDout(info,"normal =  : "<<result.getContact(k).normal);
+    polytope::vector3_t normal;
+    for(size_t k=0 ; k < result.numContacts() ; k++){
+      normal = -result.getContact(k).normal; // of contact surface
+     // hppDout(info,"normal =  : "<<normal);
+      for (std::size_t i = 0; i < 3; i++) {
+          normalAv [i] += normal [i]/nbNormalAv;
       }
-	  polytope::vector3_t normal = -result.getContact(0).normal; // of contact surface
-	  for (std::size_t i = 0; i < 3; i++) {
-	    normalAv [i] += normal [i]/nbNormalAv;
-	  }
-	} // for each ROMS
-      normalAv.normalize ();
-      hppDout (info, "normed normalAv= " << normalAv);
-      return normalAv;
+    }
+  } // for each ROMS
+  normalAv.normalize ();
+  hppDout (info, "normed normalAv= " << normalAv);
+  return normalAv;
     }
 
   } // namespace core
