@@ -199,7 +199,29 @@ namespace hpp {
                               const hpp::rbprm::RbPrmLimbPtr_t& limb, model::ConfigurationOut_t configuration,
                               const double robustnessTreshold, bool stability = true)
     {
-        for(std::vector<sampling::Sample>::const_iterator cit = limb->sampleContainer_.samples_.begin();
+      // Pierre :
+      sampling::T_OctreeReport finalSet;
+      fcl::Contact contact;
+      fcl::Vec3f normal;
+      for(std::vector<sampling::Sample>::const_iterator cit = limb->sampleContainer_.samples_.begin();
+          cit != limb->sampleContainer_.samples_.end(); ++cit){
+        sampling::OctreeReport report(&(*cit),contact,(*cit).staticValue_,normal );
+        finalSet.insert(report);
+      }
+      for(sampling::T_OctreeReport::const_iterator it = finalSet.begin() ; it != finalSet.end(); ++it){ // ordered by best static value ??
+        sampling::Load(*it->sample_, configuration);
+        hpp::core::ValidationReportPtr_t valRep (new hpp::core::CollisionValidationReport);
+        if(validation->validate(configuration, valRep) && (!stability || stability::IsStable(body,current) >=robustnessTreshold))
+        {
+            current.configuration_ = configuration;
+            return true;
+        }
+      }
+      return false;
+      
+      
+      //////////////////////////////////////////////
+      /*  for(std::vector<sampling::Sample>::const_iterator cit = limb->sampleContainer_.samples_.begin();
             cit != limb->sampleContainer_.samples_.end(); ++cit)
         {
             sampling::Load(*cit, configuration);
@@ -211,6 +233,7 @@ namespace hpp {
             }
         }
         return false;
+        */
     }
 
     // first step
