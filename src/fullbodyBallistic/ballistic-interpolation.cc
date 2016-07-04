@@ -217,14 +217,12 @@ namespace hpp {
       while (contact_OK && iteration < maxIter) { 
         iteration++;
         previousSuccessLimbs = successLimbs;
-        hppDout(notice, "previousSuccessLimbs size = "<<previousSuccessLimbs.size());
+       // hppDout(notice, "previousSuccessLimbs size = "<<previousSuccessLimbs.size());
         successLimbs.clear ();    
-        hppDout(notice, "previousSuccessLimbs size After clear= "<<previousSuccessLimbs.size());
+       // hppDout(notice, "previousSuccessLimbs size After clear= "<<previousSuccessLimbs.size());
         hppDout (info, "iteration= " << iteration);
         hppDout (info, "currentLenght = " << currentLenght);
-       // q_trunk_offset = (*bp) (currentLenght, success);
-        q_trunk_offset[2] += 0.01;
-        hppDout (info, "q_trunk_offset= " << displayConfig (q_trunk_offset));
+        q_trunk_offset = (*bp) (currentLenght, success);
         dir = bp->evaluateVelocity (currentLenght);
         //state = MaintainPreviousContacts (lastState, limbColVal, q_trunk_offset, contactMaintained, multipleBreaks, successLimbs);
         //state = robot_->MaintainPreviousContacts (lastState, robot_, limbColVal, q_trunk_offset, contactMaintained, multipleBreaks,0.);
@@ -236,8 +234,7 @@ namespace hpp {
           contact_OK = false;
         }
         hppDout (info, "q_contact_offset= " << displayConfig (q_contact_offset));
-        hppDout (info, "contactMaintained = " << contactMaintained);
-        hppDout (info, "multipleBreaks = " << multipleBreaks);
+        hppDout (info, "## contactMaintained = " << contactMaintained);
         
         lastState = state;
         currentLenght += u;
@@ -516,22 +513,19 @@ namespace hpp {
 			    pathCoefs);
 
       q_contact_offset1 = computeOffsetContactConfig (bp1max, start_, &u_offset1, true);
-      q_contact_offset2 = computeOffsetContactConfig (bp2max, end_, &u_offset2, false);
+      q_contact_offset2 = computeOffsetContactConfig (bp2max, end_, &u_offset2, false);      
 
-      hppDout (info, "offset contact 1= " << displayConfig(q_contact_offset1 - start_.configuration_));
-      
       bp1 = Interpolate (qStart, q_contact_offset1,
 			 pp->computeLength (qStart, q_contact_offset1),
 			 pathCoefs);
-      //bp1max = Interpolate (q_contact_offset1, q_max,			    pp->computeLength (q_contact_offset1, q_max),			    pathCoefs);
-      //bp2max = Interpolate (q_max, q_contact_offset2,			    pp->computeLength (q_max, q_contact_offset2),			    pathCoefs);
-      //bp3 = Interpolate (q_contact_offset2, qEnd,			 pp->computeLength(q_contact_offset2, qEnd), pathCoefs);
+      bp1max = Interpolate (q_contact_offset1, q_max, pp->computeLength (q_contact_offset1, q_max),pathCoefs);
+      bp2max = Interpolate (q_max, q_contact_offset2, pp->computeLength (q_max, q_contact_offset2),	pathCoefs);
+      bp3 = Interpolate (q_contact_offset2, qEnd, pp->computeLength(q_contact_offset2, qEnd), pathCoefs);
 
       newPath->appendPath (bp1);
-     // newPath->appendPath (bp1max);
-     // newPath->appendPath (bp2max);
-     // newPath->appendPath (bp3);
-      hppDout(notice,"Last valid config = "<<displayConfig(q_contact_offset1));
+      newPath->appendPath (bp1max);
+      newPath->appendPath (bp2max);
+      newPath->appendPath (bp3);
       return newPath;
     }
 

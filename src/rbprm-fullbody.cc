@@ -257,7 +257,7 @@ namespace hpp {
             const RbPrmLimbPtr_t limb = body->GetLimbs().at(name);
             // try to maintain contact
             const fcl::Vec3f& ppos  =previous.contactPositions_.at(name);
-            core::ConfigProjectorPtr_t proj = core::ConfigProjector::create(body->device_,"proj", 1e-2, 30);
+            core::ConfigProjectorPtr_t proj = core::ConfigProjector::create(body->device_,"proj", 1e-3, 30);
             LockJointRec(limb->limb_->name(), body->device_->rootJoint(), proj);
             const fcl::Vec3f z = limb->effector_->currentTransformation().getRotation() * limb->normal_;
             const fcl::Matrix3f& rotation = previous.contactRotation_.at(name);
