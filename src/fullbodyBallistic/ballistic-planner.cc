@@ -85,9 +85,13 @@ namespace hpp {
       core::ConfigurationPtr_t q_rand;
       core::Configuration_t q_tmp;
       core::ValidationReportPtr_t report;
+      bool valid = false;
       
       hppDout(notice,"# oneStep BEGIN");
-      q_rand = configurationShooter_->shoot ();
+      while (!valid) {
+	q_rand = configurationShooter_->shoot ();
+	valid = problem ().configValidations()->validate(*q_rand,report);
+      }
       hppDout (info, "q_rand: " << displayConfig (*q_rand));
       fcl::Vec3f normalAv = computeMiddleContacts (*q_rand);
       if (normalAv.norm () > 0.9) {
