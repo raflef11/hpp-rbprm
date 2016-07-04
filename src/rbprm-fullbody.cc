@@ -272,7 +272,7 @@ namespace hpp {
             if(proj->apply(config))
             {
                 hpp::core::ValidationReportPtr_t valRep (new hpp::core::CollisionValidationReport);
-                if(limbValidations.at(name)->validate(config, valRep))
+                if(/*limbValidations.at(name)->validate(config, valRep)*/ true)
                 {
                     // stable?
                     current.contacts_[name] = true;
@@ -432,7 +432,7 @@ namespace hpp {
     watch.start("collision");
     #endif*/
                 hpp::core::ValidationReportPtr_t valRep (new hpp::core::CollisionValidationReport);
-                if(validation->validate(configuration, valRep))
+                if(true) //validation->validate(configuration, valRep))
                 {
 		  hppDout (info, "config is valid");
 		  /*#ifdef PROFILE
@@ -452,7 +452,7 @@ namespace hpp {
                     double robustness = stability::IsStable(body,tmp);
 		    if (noStability) {
 		      hppDout (info, "stability bypassed");
-		      robustness = 400; // hardcoded to bypass stability
+		      robustness = 4000000; // hardcoded to bypass stability
 		    } else
 		      hppDout (info, "stability computed");
                     if((tmp.nbContacts == 1 && !stableForOneContact) || robustness>=robustnessTreshold)
@@ -647,6 +647,7 @@ else
     body->device_->computeForwardKinematics ();
     // try to maintain previous contacts
     State result = MaintainPreviousContacts(previous,body, body->limbcollisionValidations_, configuration, contactMaintained, multipleBreaks, robustnessTreshold);
+    hppDout(notice, "contact maintained"<<contactMaintained);
     // If more than one are broken, go back to previous state
     // and reposition
     if(multipleBreaks && !allowFailure)
@@ -692,14 +693,16 @@ else
         }
     }
     contactMaintained = !contactCreated && contactMaintained;
+    hppDout(notice, "contactMaintained : "<<contactMaintained);
     // reload previous configuration
     // no stable contact was found / limb maintained
-    if(!result.stable)
+    if(!result.stable && !body->noStability_)
     {
         // if no contact changes happened, try to modify one contact
         // existing previously to find a stable value
         if(contactMaintained)
         {
+            hppDout(notice,"result ! stable");
             contactMaintained = false;
             // could not reposition any contact. Planner has failed
             if (!RepositionContacts(result, body, body->collisionValidation_, config, collisionObjects, direction, robustnessTreshold))
