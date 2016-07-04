@@ -168,19 +168,19 @@ namespace hpp {
       void LockJointRec (const std::string& limb, const model::JointPtr_t joint,
 			 core::ConfigProjectorPtr_t& projector);
 
-      bool ComputeCollisionFreeConfiguration
+      /*bool ComputeCollisionFreeConfiguration
 	(State& current, core::CollisionValidationPtr_t validation,
 	 const hpp::rbprm::RbPrmLimbPtr_t& limb,
 	 model::ConfigurationOut_t configuration,
-	 const double robustnessTreshold, bool stability = true);
+     const double robustnessTreshold, bool stability = true);*/
 
       /// Compute a state that *if possible* keeps the same contacts as
       /// in the previous state given.
-      State MaintainPreviousContacts
+  /*    State MaintainPreviousContacts
 	(const State& previous,
 	 std::map<std::string,core::CollisionValidationPtr_t>& limbValidations,
 	 model::ConfigurationIn_t configuration, bool& contactMaintained,
-	 bool& multipleBreaks, std::vector <RbPrmLimbPtr_t>& successLimbs, const double robustnessTreshold = 0);
+     bool& multipleBreaks, std::vector <RbPrmLimbPtr_t>& successLimbs, const double robustnessTreshold = 0);*/
 
       /// Return the configuration based at u_offset on subpath, trying to 
       /// apply same contacts as in previousState. u_offset is decreased 

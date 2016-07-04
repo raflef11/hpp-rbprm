@@ -197,7 +197,7 @@ namespace hpp {
                               State& current,
                               core::CollisionValidationPtr_t validation,
                               const hpp::rbprm::RbPrmLimbPtr_t& limb, model::ConfigurationOut_t configuration,
-                              const double robustnessTreshold, bool stability = true)
+                              const double robustnessTreshold, bool stability )
     {
       // Pierre :
       sampling::T_OctreeReport finalSet;
@@ -647,7 +647,6 @@ else
     body->device_->computeForwardKinematics ();
     // try to maintain previous contacts
     State result = MaintainPreviousContacts(previous,body, body->limbcollisionValidations_, configuration, contactMaintained, multipleBreaks, robustnessTreshold);
-    hppDout(notice, "contact maintained"<<contactMaintained);
     // If more than one are broken, go back to previous state
     // and reposition
     if(multipleBreaks && !allowFailure)
@@ -693,7 +692,6 @@ else
         }
     }
     contactMaintained = !contactCreated && contactMaintained;
-    hppDout(notice, "contactMaintained : "<<contactMaintained);
     // reload previous configuration
     // no stable contact was found / limb maintained
     if(!result.stable && !body->noStability_)
