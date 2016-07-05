@@ -270,7 +270,7 @@ namespace hpp {
             if(proj->apply(config))
             {
                 hpp::core::ValidationReportPtr_t valRep (new hpp::core::CollisionValidationReport);
-                if(/*limbValidations.at(name)->validate(config, valRep)*/ true)
+                if(/*limbValidations.at(name)->validate(config, valRep) */true)
                 {
                     // stable?
                     current.contacts_[name] = true;

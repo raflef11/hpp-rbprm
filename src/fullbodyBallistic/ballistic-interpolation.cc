@@ -237,13 +237,13 @@ namespace hpp {
         if(contactMaintained){
           q_contact_offset = state.configuration_;
           contact_OK = true;
+          lastState = state;
         }else{
           contact_OK = false;
         }
         hppDout (info, "q_contact_offset= " << displayConfig (q_contact_offset));
         hppDout (info, "## contactMaintained = " << contactMaintained);
         
-        lastState = state;
         currentLenght += u;
       }//while
       
@@ -251,6 +251,17 @@ namespace hpp {
       // take limb-configs from contact if contact succeeded, 
       // from interp otherwise.
       //result = replaceLimbConfigsInFullConfig (q_interp,                                               q_contact_offset, fixedLimbs);
+      
+      // replace the limbs not used for contact with their configuration in flexionPose_
+        for( rbprm::T_Limb::const_iterator lit = robot_->GetLimbs().begin();lit != robot_->GetLimbs().end(); ++lit){
+        hppDout(notice,"LIST OF LIMBS : "<< lit->first << "contact = "<<lastState.contacts_[lit->first]);
+        if( ! lastState.contacts_[lit->first]){ // limb is not in contact
+          hppDout(notice," Not in contact, index config : "<<lit->second->limb_->rankInConfiguration()<<" -> "<<lit->second->effector_->rankInConfiguration());
+          for(size_t i = lit->second->limb_->rankInConfiguration() ; i < lit->second->effector_->rankInConfiguration() ; i++){
+            q_contact_offset[i] = flexionPose_[i];
+          }
+        } 
+      }
       return q_contact_offset;
     }
 

@@ -198,7 +198,7 @@ namespace
         srand (seed);
         hppDout(notice,"&&&&&& SEED = "<<seed);
 */
-      srand (0);
+     // srand (0);
 
         RbPrmShooter* ptr = new RbPrmShooter (robot, geometries, filter, normalFilters, shootLimit, displacementLimit, nbFilterMatch);
         RbPrmShooterPtr_t shPtr (ptr);
