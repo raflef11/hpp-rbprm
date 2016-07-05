@@ -272,7 +272,7 @@ namespace hpp {
             if(proj->apply(config))
             {
                 hpp::core::ValidationReportPtr_t valRep (new hpp::core::CollisionValidationReport);
-                if(limbValidations.at(name)->validate(config, valRep) /*true*/)
+                if(/*limbValidations.at(name)->validate(config, valRep)*/ true)
                 {
                     // stable?
                     current.contacts_[name] = true;
@@ -633,7 +633,7 @@ else
     hpp::rbprm::State ComputeContacts(const hpp::rbprm::State& previous, const hpp::rbprm::RbPrmFullBodyPtr_t& body, model::ConfigurationIn_t configuration,
                                       const model::ObjectVector_t& collisionObjects,
                                       const fcl::Vec3f& direction, bool& contactMaintained, bool& multipleBreaks,
-                                      const bool allowFailure, const double robustnessTreshold, bool ignore6DOF)
+                                      const bool allowFailure, const double robustnessTreshold, bool ignore6DOF, bool allowContactCreation)
     {
 //static int id = 0;
     const T_Limb& limbs = body->GetLimbs();
@@ -649,6 +649,7 @@ else
     State result = MaintainPreviousContacts(previous,body, body->limbcollisionValidations_, configuration, contactMaintained, multipleBreaks, robustnessTreshold,ignore6DOF);
     // If more than one are broken, go back to previous state
     // and reposition
+    hppDout(notice,"MaintainPreviousCOntact, contact maintained = "<<contactMaintained);
     if(multipleBreaks && !allowFailure)
     {
         fcl::Vec3f normal, position;
@@ -678,19 +679,22 @@ else
     // we can go on normally
     core::Configuration_t config = result.configuration_;
     bool contactCreated(false);
+    if(allowContactCreation){
     // iterate over each const free limb to try to generate contacts
-    for(T_Limb::const_iterator lit = limbs.begin(); lit != limbs.end(); ++lit)
-    {
+      for(T_Limb::const_iterator lit = limbs.begin(); lit != limbs.end(); ++lit)
+      {
         fcl::Vec3f normal, position;
         if(result.contacts_.find(lit->first) == result.contacts_.end()
-                && !ContactExistsWithinGroup(lit->second, body->limbGroups_ ,result))
+           && !ContactExistsWithinGroup(lit->second, body->limbGroups_ ,result))
         {
-            // if the contactMaintained flag remains true,
-            // the contacts have not changed, and the state can be merged with the previous one eventually
-            contactCreated = ComputeStableContact(body, result, body->limbcollisionValidations_.at(lit->first), lit->first, lit->second, configuration,
-                                                  config, collisionObjects, direction, position, normal, robustnessTreshold) != NO_CONTACT || contactCreated;
+          // if the contactMaintained flag remains true,
+          // the contacts have not changed, and the state can be merged with the previous one eventually
+          contactCreated = ComputeStableContact(body, result, body->limbcollisionValidations_.at(lit->first), lit->first, lit->second, configuration,
+                                                config, collisionObjects, direction, position, normal, robustnessTreshold) != NO_CONTACT || contactCreated;
         }
+      }
     }
+    hppDout(notice,"COntacts created = "<<contactCreated);
     contactMaintained = !contactCreated && contactMaintained;
     // reload previous configuration
     // no stable contact was found / limb maintained

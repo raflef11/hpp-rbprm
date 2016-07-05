@@ -189,7 +189,7 @@ namespace hpp {
       core::Configuration_t computeOffsetContactConfig
 	(const BallisticPathPtr_t bp,
 	 const State &previousState,
-	 core::value_type* u_offset, const bool increase_u_offset,
+	 const core::value_type u_offset, const bool increase_u_offset,
      const std::size_t maxIter = 100, const core::value_type alpha = 0.6);
 
       /// Return the configuration at the top of the parabola (path),

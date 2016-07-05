@@ -182,12 +182,12 @@ namespace hpp {
 
     Configuration_t BallisticInterpolation::computeOffsetContactConfig
     (const BallisticPathPtr_t bp,
-     const State& previousState, value_type* u_offset,
+     const State& previousState, const value_type u_offset,
      const bool increase_u_offset,
      const std::size_t maxIter, const value_type alpha) {
-      Configuration_t q_trunk_offset, q_contact_offset(robot_->device_->configSize()), q_interp, result;
-      q_trunk_offset = start_.configuration_; 
-      hppDout(notice,"q_trunk_offset = "<<q_trunk_offset);
+      Configuration_t q_trunk_offset, q_contact_offset(previousState.configuration_), q_interp, result;
+      q_trunk_offset = previousState.configuration_; 
+      hppDout(notice,"q_trunk_offset = "<<displayConfig(q_trunk_offset));
       core::DevicePtr_t robot = robot_->device_;
       bool success, contact_OK = true, multipleBreaks, contactMaintained;
       bool ignore6DOF = false;
@@ -198,10 +198,10 @@ namespace hpp {
       value_type currentLenght;
       value_type u;
       if(increase_u_offset){ // forward progression
-        u = *u_offset;
+        u = u_offset;
         currentLenght = 0 + u;
       }else{ // backward progression
-        u = - *u_offset;
+        u = - u_offset;
         currentLenght = bp->length() + u;
       }
       std::map<std::string,core::CollisionValidationPtr_t> limbColVal = 
@@ -210,12 +210,13 @@ namespace hpp {
       
       q_interp = (*bp) (currentLenght, success);
       
-      if (*u_offset == 0) {
+      if (u_offset == 0) {
         hppDout (info, "no cushion effect asked, return interpolated config");
         return q_interp;
       }
       
       while (contact_OK && iteration < maxIter) { 
+        hppDout (info, "currentLenght= " << currentLenght);        
         iteration++;
         previousSuccessLimbs = successLimbs;
        // hppDout(notice, "previousSuccessLimbs size = "<<previousSuccessLimbs.size());
@@ -227,10 +228,10 @@ namespace hpp {
         dir = bp->evaluateVelocity (currentLenght);
         //state = MaintainPreviousContacts (lastState, limbColVal, q_trunk_offset, contactMaintained, multipleBreaks, successLimbs);
         //state = robot_->MaintainPreviousContacts (lastState, robot_, limbColVal, q_trunk_offset, contactMaintained, multipleBreaks,0.);
-        state = rbprm::ComputeContacts(lastState,robot_,q_trunk_offset,problem_.collisionObstacles(),dir,contactMaintained,multipleBreaks,true,0.,ignore6DOF);
+        state = rbprm::ComputeContacts(lastState,robot_,q_trunk_offset,problem_.collisionObstacles(),dir,contactMaintained,multipleBreaks,true,0.,ignore6DOF,false);
         if(!contactMaintained && !ignore6DOF){ // after the first fail with rotationnal constraint, we relax the problem for longer path
           ignore6DOF = true;
-          state = rbprm::ComputeContacts(lastState,robot_,q_trunk_offset,problem_.collisionObstacles(),dir,contactMaintained,multipleBreaks,true,0.,ignore6DOF);
+          state = rbprm::ComputeContacts(lastState,robot_,q_trunk_offset,problem_.collisionObstacles(),dir,contactMaintained,multipleBreaks,true,0.,ignore6DOF,false);
           hppDout(notice,"Relax 6DOF constraints after "<<iteration<<" iterations");
         }
         if(contactMaintained){
@@ -245,7 +246,6 @@ namespace hpp {
         lastState = state;
         currentLenght += u;
       }//while
-      hppDout (info, "currentLenght= " << currentLenght);
       
       // replace limbs that are accurate:
       // take limb-configs from contact if contact succeeded, 
@@ -355,7 +355,6 @@ namespace hpp {
       vector_t V0 (3), Vimp (3); fcl::Vec3f dir;
       core::PathPtr_t subpath = path_->pathAtRank (0);
       State state, state1, state2;
-      value_type u_offset1 = u_offset, u_offset2 = 1-u_offset;
 
       std::map<std::string,core::CollisionValidationPtr_t> limbColVal = robot_->getLimbcollisionValidations ();
 
@@ -417,8 +416,8 @@ namespace hpp {
 			      pp->computeLength (q_max, q2contact),
 			      subpath->coefficients ());
 
-	q_contact_offset1 = computeOffsetContactConfig (bp1max, state1, &u_offset1, true);
-	q_contact_offset2 = computeOffsetContactConfig (bp2max, state2, &u_offset2, false);
+	q_contact_offset1 = computeOffsetContactConfig (bp1max, state1, u_offset, true);
+	q_contact_offset2 = computeOffsetContactConfig (bp2max, state2, u_offset, false);
 
   	hppDout (info, "offset contact 1= " << displayConfig(q_contact_offset1 - start_.configuration_));
   
@@ -459,8 +458,8 @@ namespace hpp {
 				pp->computeLength (q_max, q2contact),
 				subpath->coefficients ());
 
-	  q_contact_offset1 = computeOffsetContactConfig (bp1max, state1, &u_offset1, true);
-	  q_contact_offset2 = computeOffsetContactConfig (bp2max, state2, &u_offset2, false);
+	  q_contact_offset1 = computeOffsetContactConfig (bp1max, state1, u_offset, true);
+	  q_contact_offset2 = computeOffsetContactConfig (bp2max, state2, u_offset, false);
 
 	  bp1 = Interpolate (q1contact, q_contact_offset1,
 			     pp->computeLength (q1contact, q_contact_offset1),
@@ -502,7 +501,6 @@ namespace hpp {
       robot_->noStability_ = true; // disable stability for waypoints
       vector_t V0 (3), Vimp (3); fcl::Vec3f dir;
       State state;
-      value_type u_offset1 = u_offset, u_offset2 = 1-u_offset;
 
       const core::PathPtr_t path = path_->pathAtRank (0);
       const ParabolaPathPtr_t pp = 
@@ -518,8 +516,8 @@ namespace hpp {
       bp2max = Interpolate (q_max, qEnd, pp->computeLength (q_max, qEnd),
 			    pathCoefs);
 
-      q_contact_offset1 = computeOffsetContactConfig (bp1max, start_, &u_offset1, true);
-      q_contact_offset2 = computeOffsetContactConfig (bp2max, end_, &u_offset2, false);      
+      q_contact_offset1 = computeOffsetContactConfig (bp1max, start_, u_offset, true);
+      q_contact_offset2 = computeOffsetContactConfig (bp2max, end_, u_offset, false);      
 
       bp1 = Interpolate (qStart, q_contact_offset1,
 			 pp->computeLength (qStart, q_contact_offset1),
