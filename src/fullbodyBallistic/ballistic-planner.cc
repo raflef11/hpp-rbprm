@@ -93,7 +93,7 @@ namespace hpp {
 	valid = problem ().configValidations()->validate(*q_rand,report);
       }
       hppDout (info, "q_rand: " << displayConfig (*q_rand));
-      fcl::Vec3f normalAv = computeMiddleContacts (*q_rand);
+      /*fcl::Vec3f normalAv = computeMiddleContacts (*q_rand);
       if (normalAv.norm () > 0.9) {
 	// contactNormalAverage_ correctly computed and can be used
 	// else, keep previous normal in extra-config
@@ -101,7 +101,7 @@ namespace hpp {
 	  (*q_rand) [i + indexECS] = normalAv [i];
       }
       else
-	hppDout (info, "contactNormalAverage could not be computed");
+      hppDout (info, "contactNormalAverage could not be computed");*/
       hppDout (info, "q_rand after avNormal: " << displayConfig (*q_rand));
       
       // update q_rand orientation with new normal IF it is valid
@@ -190,7 +190,7 @@ namespace hpp {
         core::ConfigurationPtr_t q2 ((*itn)->configuration ());
         assert (*q1 != *q2);
 
-        fcl::Vec3f normalAv = computeMiddleContacts (*q1);
+	/*fcl::Vec3f normalAv = computeMiddleContacts (*q1);
         if (normalAv.norm () > 0.9) {
             // contactNormalAverage_ correctly computed and can be used
             // else, keep previous normal in extra-config
@@ -207,11 +207,8 @@ namespace hpp {
                 (*q2) [i + indexECS] = normalAv [i];
         }
         else
-            hppDout (info, "contactNormalAverage could not be computed");
+	hppDout (info, "contactNormalAverage could not be computed");*/
 
-
-
-        
         // Create forward and backward paths
         fwdPath = (*smParabola_) (*q1, *q2);
         bwdPath = (*smParabola_) (*q2, *q1);
@@ -435,7 +432,7 @@ namespace hpp {
       normal = -result.getContact(k).normal; // of contact surface
      // hppDout(info,"normal =  : "<<normal);
       for (std::size_t i = 0; i < 3; i++) {
-          normalAv [i] += normal [i]/nbNormalAv;
+          normalAv [i] += normal [i]/result.numContacts();
       }
     }
   } // for each ROMS
