@@ -239,7 +239,7 @@ namespace hpp {
     // first step
     State MaintainPreviousContacts(const State& previous, const hpp::rbprm::RbPrmFullBodyPtr_t& body,
                                    std::map<std::string,core::CollisionValidationPtr_t>& limbValidations,
-                                   model::ConfigurationIn_t configuration, bool& contactMaintained, bool& multipleBreaks, const double robustnessTreshold)
+                                   model::ConfigurationIn_t configuration, bool& contactMaintained, bool& multipleBreaks, const double robustnessTreshold, bool ignore6DOF = false)
     {
         contactMaintained = true;
         std::vector<std::string> brokenContacts;
@@ -262,7 +262,7 @@ namespace hpp {
             const fcl::Vec3f z = limb->effector_->currentTransformation().getRotation() * limb->normal_;
             const fcl::Matrix3f& rotation = previous.contactRotation_.at(name);
             proj->add(core::NumericalConstraint::create (constraints::Position::create("",body->device_, limb->effector_,fcl::Vec3f(0,0,0), ppos)));
-            if(limb->contactType_ == hpp::rbprm::_6_DOF)
+            if(limb->contactType_ == hpp::rbprm::_6_DOF && !ignore6DOF)
             {
                 proj->add(core::NumericalConstraint::create (constraints::Orientation::create("", body->device_,
                                                                                   limb->effector_,
@@ -272,7 +272,7 @@ namespace hpp {
             if(proj->apply(config))
             {
                 hpp::core::ValidationReportPtr_t valRep (new hpp::core::CollisionValidationReport);
-                if(/*limbValidations.at(name)->validate(config, valRep)*/ true)
+                if(limbValidations.at(name)->validate(config, valRep) /*true*/)
                 {
                     // stable?
                     current.contacts_[name] = true;
@@ -633,7 +633,7 @@ else
     hpp::rbprm::State ComputeContacts(const hpp::rbprm::State& previous, const hpp::rbprm::RbPrmFullBodyPtr_t& body, model::ConfigurationIn_t configuration,
                                       const model::ObjectVector_t& collisionObjects,
                                       const fcl::Vec3f& direction, bool& contactMaintained, bool& multipleBreaks,
-                                      const bool allowFailure, const double robustnessTreshold)
+                                      const bool allowFailure, const double robustnessTreshold, bool ignore6DOF)
     {
 //static int id = 0;
     const T_Limb& limbs = body->GetLimbs();
@@ -646,7 +646,7 @@ else
     body->device_->currentConfiguration(configuration);
     body->device_->computeForwardKinematics ();
     // try to maintain previous contacts
-    State result = MaintainPreviousContacts(previous,body, body->limbcollisionValidations_, configuration, contactMaintained, multipleBreaks, robustnessTreshold);
+    State result = MaintainPreviousContacts(previous,body, body->limbcollisionValidations_, configuration, contactMaintained, multipleBreaks, robustnessTreshold,ignore6DOF);
     // If more than one are broken, go back to previous state
     // and reposition
     if(multipleBreaks && !allowFailure)

@@ -190,6 +190,7 @@ namespace hpp {
       hppDout(notice,"q_trunk_offset = "<<q_trunk_offset);
       core::DevicePtr_t robot = robot_->device_;
       bool success, contact_OK = true, multipleBreaks, contactMaintained;
+      bool ignore6DOF = false;
       std::size_t iteration = 0;
       fcl::Vec3f dir;
       State state,lastState;
@@ -226,7 +227,12 @@ namespace hpp {
         dir = bp->evaluateVelocity (currentLenght);
         //state = MaintainPreviousContacts (lastState, limbColVal, q_trunk_offset, contactMaintained, multipleBreaks, successLimbs);
         //state = robot_->MaintainPreviousContacts (lastState, robot_, limbColVal, q_trunk_offset, contactMaintained, multipleBreaks,0.);
-        state = rbprm::ComputeContacts(lastState,robot_,q_trunk_offset,problem_.collisionObstacles(),dir,contactMaintained,multipleBreaks,true,0.);
+        state = rbprm::ComputeContacts(lastState,robot_,q_trunk_offset,problem_.collisionObstacles(),dir,contactMaintained,multipleBreaks,true,0.,ignore6DOF);
+        if(!contactMaintained && !ignore6DOF){ // after the first fail with rotationnal constraint, we relax the problem for longer path
+          ignore6DOF = true;
+          state = rbprm::ComputeContacts(lastState,robot_,q_trunk_offset,problem_.collisionObstacles(),dir,contactMaintained,multipleBreaks,true,0.,ignore6DOF);
+          hppDout(notice,"Relax 6DOF constraints after "<<iteration<<" iterations");
+        }
         if(contactMaintained){
           q_contact_offset = state.configuration_;
           contact_OK = true;
