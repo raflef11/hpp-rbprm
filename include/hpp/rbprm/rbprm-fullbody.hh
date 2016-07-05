@@ -132,7 +132,7 @@ namespace hpp {
       friend hpp::rbprm::State HPP_RBPRM_DLLAPI ComputeContacts(const hpp::rbprm::RbPrmFullBodyPtr_t& body, model::ConfigurationIn_t configuration,
                                         const model::ObjectVector_t& collisionObjects, const fcl::Vec3f& direction, const double robustnessTreshold);
 
-      friend hpp::rbprm::State HPP_RBPRM_DLLAPI ComputeContacts(const hpp::rbprm::State& previous, const hpp::rbprm::RbPrmFullBodyPtr_t& body, model::ConfigurationIn_t configuration, const model::ObjectVector_t& collisionObjects, const fcl::Vec3f& direction, bool& contactMaintained, bool& multipleBreaks, const bool allowFailure, const double robustnessTreshold);
+      friend hpp::rbprm::State HPP_RBPRM_DLLAPI ComputeContacts(const hpp::rbprm::State& previous, const hpp::rbprm::RbPrmFullBodyPtr_t& body, model::ConfigurationIn_t configuration, const model::ObjectVector_t& collisionObjects, const fcl::Vec3f& direction, bool& contactMaintained, bool& multipleBreaks, const bool allowFailure, const double robustnessTreshold,bool ignore6DOF, bool allowContactCreation);
     }; // class RbPrmFullbody
 
     /// Generates a balanced contact configuration, considering the
@@ -166,7 +166,26 @@ namespace hpp {
     /// \return a State describing the computed contact configuration, with relevant contact information and balance information.
     hpp::rbprm::State HPP_RBPRM_DLLAPI ComputeContacts(const hpp::rbprm::State& previous, const hpp::rbprm::RbPrmFullBodyPtr_t& body, model::ConfigurationIn_t configuration,
                                             const model::ObjectVector_t& collisionObjects, const fcl::Vec3f& direction, bool& contactMaintained, bool& multipleBreaks, const bool allowFailure,
-                                            const double robustnessTreshold = 0);
+                                            const double robustnessTreshold = 0, bool ignore6DOF = false, bool allowContactCreation = true);
+
+
+    /**
+     * @brief ComputeCollisionFreeConfiguration compute a collision free configuration,
+     * with the higher value from the active analysis
+     * @param body
+     * @param current
+     * @param validation
+     * @param limb
+     * @param configuration the best configuration
+     * @param robustnessTreshold
+     * @param stability
+     * @return true if successfull
+     */
+    bool ComputeCollisionFreeConfiguration(const hpp::rbprm::RbPrmFullBodyPtr_t& body,
+                              State& current,
+                              core::CollisionValidationPtr_t validation,
+                              const hpp::rbprm::RbPrmLimbPtr_t& limb, model::ConfigurationOut_t configuration,
+                              const double robustnessTreshold, bool stability = true);
   } // namespace rbprm
 
 } // namespace hpp

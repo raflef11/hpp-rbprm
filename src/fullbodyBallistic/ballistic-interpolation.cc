@@ -182,57 +182,76 @@ namespace hpp {
 
     Configuration_t BallisticInterpolation::computeOffsetContactConfig
     (const BallisticPathPtr_t bp,
-     const State previousState, value_type* u_offset,
-     const bool decrease_u_offset,
+     const State& previousState, const value_type u_offset,
+     const bool increase_u_offset,
      const std::size_t maxIter, const value_type alpha) {
-      Configuration_t q_trunk_offset, q_contact_offset, q_interp, result;
+      Configuration_t q_trunk_offset, q_contact_offset(previousState.configuration_), q_interp, result;
+      q_trunk_offset = previousState.configuration_; 
+      hppDout(notice,"q_trunk_offset = "<<displayConfig(q_trunk_offset));
       core::DevicePtr_t robot = robot_->device_;
-      bool success, contact_OK = false, multipleBreaks, contactMaintained;
+      bool success, contact_OK = true, multipleBreaks, contactMaintained;
+      bool ignore6DOF = false;
       std::size_t iteration = 0;
       fcl::Vec3f dir;
-      State state;
-      const value_type pathLength = bp->length ();
+      State state,lastState;
+      lastState = previousState;
+      value_type currentLenght;
+      value_type u;
+      if(increase_u_offset){ // forward progression
+        u = u_offset;
+        currentLenght = 0 + u;
+      }else{ // backward progression
+        u = - u_offset;
+        currentLenght = bp->length() + u;
+      }
       std::map<std::string,core::CollisionValidationPtr_t> limbColVal = 
-	robot_->getLimbcollisionValidations ();
-      std::vector <RbPrmLimbPtr_t> successLimbs;
-
-      q_interp = (*bp) (*u_offset*pathLength, success);
+          robot_->getLimbcollisionValidations ();
+      std::vector <RbPrmLimbPtr_t> successLimbs,previousSuccessLimbs,fixedLimbs;
       
-      if (*u_offset == 0) {
-	hppDout (info, "no cushion effect asked, return interpolated config");
-	return q_interp;
+      q_interp = (*bp) (currentLenght, success);
+      
+      if (u_offset == 0) {
+        hppDout (info, "no cushion effect asked, return interpolated config");
+        return q_interp;
       }
       
-      while (!contact_OK && iteration < maxIter) { 
-	  iteration++;
-	  successLimbs.clear ();
-	  hppDout (info, "iteration= " << iteration);
-	  hppDout (info, "u_offset= " << *u_offset);
-	  q_trunk_offset = (*bp) (*u_offset * pathLength, success);
-	  hppDout (info, "q_trunk_offset= " << displayConfig (q_trunk_offset));
-	  dir = bp->evaluateVelocity (*u_offset * pathLength);
-	  state = MaintainPreviousContacts (previousState, limbColVal, fillConfiguration (q_trunk_offset, robot->configSize ()), contactMaintained, multipleBreaks, successLimbs);
-	  q_contact_offset = state.configuration_;
-	  hppDout (info, "q_contact_offset= " << displayConfig (q_contact_offset));
-	  hppDout (info, "contactMaintained = " << contactMaintained);
-	  hppDout (info, "multipleBreaks = " << multipleBreaks);
-	  contact_OK = !multipleBreaks;
-	  if (!contact_OK) {
-	    if (decrease_u_offset)
-	      *u_offset = *u_offset * alpha;
-	    else
-	      *u_offset = 1-(1-*u_offset)*alpha;
-	  }//if contact
+      while (contact_OK && iteration < maxIter) { 
+        hppDout (info, "currentLenght= " << currentLenght);        
+        iteration++;
+        previousSuccessLimbs = successLimbs;
+       // hppDout(notice, "previousSuccessLimbs size = "<<previousSuccessLimbs.size());
+        successLimbs.clear ();    
+       // hppDout(notice, "previousSuccessLimbs size After clear= "<<previousSuccessLimbs.size());
+        hppDout (info, "iteration= " << iteration);
+        hppDout (info, "currentLenght = " << currentLenght);
+        q_trunk_offset = (*bp) (currentLenght, success);
+        dir = bp->evaluateVelocity (currentLenght);
+        //state = MaintainPreviousContacts (lastState, limbColVal, q_trunk_offset, contactMaintained, multipleBreaks, successLimbs);
+        //state = robot_->MaintainPreviousContacts (lastState, robot_, limbColVal, q_trunk_offset, contactMaintained, multipleBreaks,0.);
+        state = rbprm::ComputeContacts(lastState,robot_,q_trunk_offset,problem_.collisionObstacles(),dir,contactMaintained,multipleBreaks,true,0.,ignore6DOF,false);
+        if(!contactMaintained && !ignore6DOF){ // after the first fail with rotationnal constraint, we relax the problem for longer path
+          ignore6DOF = true;
+          state = rbprm::ComputeContacts(lastState,robot_,q_trunk_offset,problem_.collisionObstacles(),dir,contactMaintained,multipleBreaks,true,0.,ignore6DOF,false);
+          hppDout(notice,"Relax 6DOF constraints after "<<iteration<<" iterations");
+        }
+        if(contactMaintained){
+          q_contact_offset = state.configuration_;
+          contact_OK = true;
+        }else{
+          contact_OK = false;
+        }
+        hppDout (info, "q_contact_offset= " << displayConfig (q_contact_offset));
+        hppDout (info, "## contactMaintained = " << contactMaintained);
+        
+        lastState = state;
+        currentLenght += u;
       }//while
-      hppDout (info, "u_offset= " << *u_offset);
-
+      
       // replace limbs that are accurate:
       // take limb-configs from contact if contact succeeded, 
       // from interp otherwise.
-      result = replaceLimbConfigsInFullConfig (q_interp,
-					       q_contact_offset,
-					       successLimbs);
-      return result;
+      //result = replaceLimbConfigsInFullConfig (q_interp,                                               q_contact_offset, fixedLimbs);
+      return q_contact_offset;
     }
 
     Configuration_t BallisticInterpolation::computeTopExtendingPose 
@@ -336,7 +355,6 @@ namespace hpp {
       vector_t V0 (3), Vimp (3); fcl::Vec3f dir;
       core::PathPtr_t subpath = path_->pathAtRank (0);
       State state, state1, state2;
-      value_type u_offset1 = u_offset, u_offset2 = 1-u_offset;
 
       std::map<std::string,core::CollisionValidationPtr_t> limbColVal = robot_->getLimbcollisionValidations ();
 
@@ -398,9 +416,11 @@ namespace hpp {
 			      pp->computeLength (q_max, q2contact),
 			      subpath->coefficients ());
 
-	q_contact_offset1 = computeOffsetContactConfig (bp1max, state1, &u_offset1, true);
-	q_contact_offset2 = computeOffsetContactConfig (bp2max, state2, &u_offset2, false);
+	q_contact_offset1 = computeOffsetContactConfig (bp1max, state1, u_offset, true);
+	q_contact_offset2 = computeOffsetContactConfig (bp2max, state2, u_offset, false);
 
+  	hppDout (info, "offset contact 1= " << displayConfig(q_contact_offset1 - start_.configuration_));
+  
 	bp1 = Interpolate (q1contact, q_contact_offset1,
 			   pp->computeLength (q1contact, q_contact_offset1),
 			   subpath->coefficients ());
@@ -438,8 +458,8 @@ namespace hpp {
 				pp->computeLength (q_max, q2contact),
 				subpath->coefficients ());
 
-	  q_contact_offset1 = computeOffsetContactConfig (bp1max, state1, &u_offset1, true);
-	  q_contact_offset2 = computeOffsetContactConfig (bp2max, state2, &u_offset2, false);
+	  q_contact_offset1 = computeOffsetContactConfig (bp1max, state1, u_offset, true);
+	  q_contact_offset2 = computeOffsetContactConfig (bp2max, state2, u_offset, false);
 
 	  bp1 = Interpolate (q1contact, q_contact_offset1,
 			     pp->computeLength (q1contact, q_contact_offset1),
@@ -481,7 +501,6 @@ namespace hpp {
       robot_->noStability_ = true; // disable stability for waypoints
       vector_t V0 (3), Vimp (3); fcl::Vec3f dir;
       State state;
-      value_type u_offset1 = u_offset, u_offset2 = 1-u_offset;
 
       const core::PathPtr_t path = path_->pathAtRank (0);
       const ParabolaPathPtr_t pp = 
@@ -497,20 +516,15 @@ namespace hpp {
       bp2max = Interpolate (q_max, qEnd, pp->computeLength (q_max, qEnd),
 			    pathCoefs);
 
-      q_contact_offset1 = computeOffsetContactConfig (bp1max, start_, &u_offset1, true, 4);
-      q_contact_offset2 = computeOffsetContactConfig (bp2max, end_, &u_offset2, false, 4);
+      q_contact_offset1 = computeOffsetContactConfig (bp1max, start_, u_offset, true);
+      q_contact_offset2 = computeOffsetContactConfig (bp2max, end_, u_offset, false);      
 
       bp1 = Interpolate (qStart, q_contact_offset1,
 			 pp->computeLength (qStart, q_contact_offset1),
 			 pathCoefs);
-      bp1max = Interpolate (q_contact_offset1, q_max,
-			    pp->computeLength (q_contact_offset1, q_max),
-			    pathCoefs);
-      bp2max = Interpolate (q_max, q_contact_offset2,
-			    pp->computeLength (q_max, q_contact_offset2),
-			    pathCoefs);
-      bp3 = Interpolate (q_contact_offset2, qEnd,
-			 pp->computeLength(q_contact_offset2, qEnd), pathCoefs);
+      bp1max = Interpolate (q_contact_offset1, q_max, pp->computeLength (q_contact_offset1, q_max),pathCoefs);
+      bp2max = Interpolate (q_max, q_contact_offset2, pp->computeLength (q_max, q_contact_offset2),	pathCoefs);
+      bp3 = Interpolate (q_contact_offset2, qEnd, pp->computeLength(q_contact_offset2, qEnd), pathCoefs);
 
       newPath->appendPath (bp1);
       newPath->appendPath (bp1max);
@@ -551,21 +565,22 @@ namespace hpp {
       return res;
     }
 
-    void BallisticInterpolation::LockJointRec
-    (const std::string& limb, const model::JointPtr_t joint,
-     core::ConfigProjectorPtr_t& projector)
+    void BallisticInterpolation::LockJointRec(const std::string& limb, const model::JointPtr_t joint, core::ConfigProjectorPtr_t& projector )
     {
-      if(joint->name() == limb) return;
-      const core::Configuration_t& c = joint->robot()->currentConfiguration();
-      core::size_type rankInConfiguration (joint->rankInConfiguration ());
-      projector->add(core::LockedJoint::create(joint,c.segment(rankInConfiguration, joint->configSize())));
-      for(std::size_t i=0; i< joint->numberChildJoints(); ++i)
+        if(joint->name() == limb){      
+          hppDout(notice,"LockJointrec : name = "<<joint->name()); 
+          return;
+        }
+        const core::Configuration_t& c = joint->robot()->currentConfiguration();
+        core::size_type rankInConfiguration (joint->rankInConfiguration ());
+        projector->add(core::LockedJoint::create(joint,c.segment(rankInConfiguration, joint->configSize())));
+        for(std::size_t i=0; i< joint->numberChildJoints(); ++i)
         {
-	  LockJointRec(limb,joint->childJoint(i), projector);
+            LockJointRec(limb,joint->childJoint(i), projector);
         }
     }
 
-    bool BallisticInterpolation::ComputeCollisionFreeConfiguration
+   /* bool BallisticInterpolation::ComputeCollisionFreeConfiguration
     (State& current, core::CollisionValidationPtr_t validation,
      const hpp::rbprm::RbPrmLimbPtr_t& limb,
      model::ConfigurationOut_t configuration,
@@ -583,91 +598,99 @@ namespace hpp {
             }
         }
       return false;
-    }
+    }*/
 
-    State BallisticInterpolation::MaintainPreviousContacts
-    (const State& previous,
-     std::map<std::string,core::CollisionValidationPtr_t>& limbValidations,
-     model::ConfigurationIn_t configuration, bool& contactMaintained,
-     bool& multipleBreaks, std::vector <RbPrmLimbPtr_t>& successLimbs, const double robustnessTreshold)
-    {
-      hppDout (info, "configuration" <<displayConfig(configuration));
-      multipleBreaks = false;
-      contactMaintained = true;
-      std::vector<std::string> brokenContacts;
-      // iterate over every existing contact and try to maintain them
-      State current;
-      current.configuration_ = configuration;
-      model::Configuration_t config = configuration;
-      core::ConfigurationIn_t save = robot_->device_->currentConfiguration();
-      // iterate over contact filo list
-      std::queue<std::string> previousStack = previous.contactOrder_;
-      while(!previousStack.empty())
-        {
-	  const std::string name = previousStack.front();
-	  previousStack.pop();
-	  const RbPrmLimbPtr_t limb = robot_->GetLimbs().at(name);
-	  // try to maintain contact
-	  const fcl::Vec3f& ppos = previous.contactPositions_.at(name);
-	  const fcl::Vec3f& normal = previous.contactNormals_.at(name);
-	  core::ConfigProjectorPtr_t proj = core::ConfigProjector::create(robot_->device_,"proj", 1e-2, 30);
-	  LockJointRec(limb->limb_->name(), robot_->device_->rootJoint(), proj);
-	  const fcl::Vec3f z = limb->effector_->currentTransformation().getRotation() * limb->normal_;
-	  const fcl::Matrix3f& rotation = previous.contactRotation_.at(name);
-	  //proj->add(core::NumericalConstraint::create (constraints::Position::create("",robot_->device_, limb->effector_,fcl::Vec3f(0,0,0), ppos)));
-	  fcl::Transform3f localFrame, globalFrame;
-	  localFrame.setTranslation(ppos);
-	  proj->add(core::NumericalConstraint::create (constraints::Position::create("",robot_->device_, limb->effector_,globalFrame, localFrame, setTranslationConstraints(normal))));
-	  if(limb->contactType_ == hpp::rbprm::_6_DOF)
-            {
-	      proj->add(core::NumericalConstraint::create (constraints::Orientation::create("", robot_->device_, limb->effector_,rotation,setMaintainRotationConstraints(z))));
-            }
-	  if(proj->apply(config))
-            {
-	      hpp::core::ValidationReportPtr_t valRep (new hpp::core::CollisionValidationReport);
-	      if(limbValidations.at(name)->validate(config, valRep))
-                {
-		  hppDout (info, "contact is valid");
-		  hppDout (info, "contact name= " << name);
-		  current.contacts_[name] = true;
-		  current.contactPositions_[name] = previous.contactPositions_.at(name);
-		  current.contactNormals_[name] = previous.contactNormals_.at(name);
-		  current.contactRotation_[name] = previous.contactRotation_.at(name);
-		  current.contactOrder_.push(name);
-		  current.configuration_ = config;
-		  successLimbs.push_back (limb);
-                }
-	      else
-                {
-		  hppDout (info, "contact is not valid");
-		  hppDout (info, "contact name= " << name);
-		  contactMaintained = false;
-		  ComputeCollisionFreeConfiguration(current,limbValidations.at(name),limb,current.configuration_,robustnessTreshold,false); // no more necessary since we will take the limb-config from an interpolation
-		  brokenContacts.push_back(name);
-		  hppDout (info, "brokenContacts name= " << name);
-                }
-            }
-	  else
-            {
-	      hppDout (info, "projection cannot be applied");
-	      hppDout (info, "contact name= " << name);
-	      contactMaintained = false;
-	      ComputeCollisionFreeConfiguration(current,limbValidations.at(name),limb,current.configuration_,robustnessTreshold,false); // no more necessary since we will take the limb-config from an interpolation
-	      brokenContacts.push_back(name);
-	      hppDout (info, "brokenContacts name= " << name);
-            }
-        }
-      hppDout (info, "current config" <<displayConfig(current.configuration_));
-      // reload previous configuration
-      robot_->device_->currentConfiguration(save);
-      hppDout (info, "brokenContacts.size()= " << brokenContacts.size());
-      hppDout (info, "successLimbs.size()= " << successLimbs.size());
-      if(brokenContacts.size() > 1)
-        {
-	  contactMaintained = false;
-	  multipleBreaks = true;
-        }
-      return current;
-      }
+//    State BallisticInterpolation::MaintainPreviousContacts
+//    (const State& previous,
+//     std::map<std::string,core::CollisionValidationPtr_t>& limbValidations,
+//     model::ConfigurationIn_t configuration, bool& contactMaintained,
+//     bool& multipleBreaks, std::vector <RbPrmLimbPtr_t>& successLimbs, const double robustnessTreshold)
+//    {
+//      hppDout (info, "configuration" <<displayConfig(configuration));
+//      multipleBreaks = false;
+//      contactMaintained = true;
+//      std::vector<std::string> brokenContacts;
+//      // iterate over every existing contact and try to maintain them
+//      State current;
+//      current.configuration_ = configuration;
+//      model::Configuration_t config = configuration;
+//      core::ConfigurationIn_t save = robot_->device_->currentConfiguration();
+//      // iterate over contact filo list
+//      std::queue<std::string> previousStack = previous.contactOrder_;
+//      while(!previousStack.empty())
+//        {
+//	  const std::string name = previousStack.front();
+//	  previousStack.pop();
+//	  const RbPrmLimbPtr_t limb = robot_->GetLimbs().at(name);
+//	  // try to maintain contact
+//	  const fcl::Vec3f& ppos = previous.contactPositions_.at(name);
+//	  const fcl::Vec3f& normal = previous.contactNormals_.at(name);
+//    hppDout(info,"Maintain contact, previous contact position : "<<ppos);
+//    hppDout(info,"Maintain contact, previous contact normal : "<<normal);
+    
+//	  core::ConfigProjectorPtr_t proj = core::ConfigProjector::create(robot_->device_,"proj", 5*1e-2, 80);
+//	  //BallisticInterpolation::LockJointRec(limb->limb_->name(), robot_->device_->rootJoint(), proj);
+    
+//    core::size_type rankInConfiguration (robot_->device_->rootJoint()->rankInConfiguration());
+//    proj->add(core::LockedJoint::create(robot_->device_->rootJoint(),robot_->device_->currentConfiguration().segment(rankInConfiguration, robot_->device_->rootJoint()->configSize())));
+    
+//	  const fcl::Vec3f z = limb->effector_->currentTransformation().getRotation() * limb->normal_;
+//	  const fcl::Matrix3f& rotation = previous.contactRotation_.at(name);
+//	  //proj->add(core::NumericalConstraint::create (constraints::Position::create("",robot_->device_, limb->effector_,fcl::Vec3f(0,0,0), ppos)));
+//	  fcl::Transform3f localFrame, globalFrame;
+//	  localFrame.setTranslation(ppos);
+//	  proj->add(core::NumericalConstraint::create (constraints::Position::create("",robot_->device_, limb->effector_,globalFrame, localFrame, setTranslationConstraints(normal))));
+//	  if(limb->contactType_ == hpp::rbprm::_6_DOF)
+//            {
+//	      proj->add(core::NumericalConstraint::create (constraints::Orientation::create("", robot_->device_, limb->effector_,rotation,setMaintainRotationConstraints(z))));
+//            }
+//	  if(proj->apply(config))
+//            {
+//      hppDout(notice,"conf initial = "<<displayConfig(configuration - config ));
+//	      hpp::core::ValidationReportPtr_t valRep (new hpp::core::CollisionValidationReport);
+//	      if(/*limbValidations.at(name)->validate(config, valRep)*/ true)
+//                {
+//		  hppDout (info, "contact is valid");
+//		  hppDout (info, "contact name= " << name);
+//		  current.contacts_[name] = true;
+//		  current.contactPositions_[name] = previous.contactPositions_.at(name);
+//		  current.contactNormals_[name] = previous.contactNormals_.at(name);
+//		  current.contactRotation_[name] = previous.contactRotation_.at(name);
+//		  current.contactOrder_.push(name);
+//		  current.configuration_ = config;
+//		  successLimbs.push_back (limb);
+//                }
+//	      else
+//                {
+//		  hppDout (info, "contact is not valid");
+//		  hppDout (info, "contact name= " << name);
+//		  contactMaintained = false;
+//          rbprm::ComputeCollisionFreeConfiguration(current,limbValidations.at(name),limb,current.configuration_,robustnessTreshold,false); // no more necessary since we will take the limb-config from an interpolation
+//		  brokenContacts.push_back(name);
+//		  hppDout (info, "brokenContacts name= " << name);
+//                }
+//            }
+//	  else
+//            {
+//	      hppDout (info, "projection cannot be applied");
+//	      hppDout (info, "contact name= " << name);
+//	      contactMaintained = false;
+//          rbprm::ComputeCollisionFreeConfiguration(current,limbValidations.at(name),limb,current.configuration_,robustnessTreshold,false); // no more necessary since we will take the limb-config from an interpolation
+//	      brokenContacts.push_back(name);
+//	      hppDout (info, "brokenContacts name= " << name);
+//            }
+//        }
+//      hppDout (info, "current config" <<displayConfig(current.configuration_));
+//      // reload previous configuration
+//      robot_->device_->currentConfiguration(save);
+//      hppDout (info, "brokenContacts.size()= " << brokenContacts.size());
+//      hppDout (info, "successLimbs.size()= " << successLimbs.size());
+//      if(brokenContacts.size() > 1)
+//        {
+//	  contactMaintained = false;
+//	  multipleBreaks = true;
+//        }
+//      return current;
+//      }
   } // model
 } //hpp
