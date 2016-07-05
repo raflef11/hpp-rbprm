@@ -273,14 +273,14 @@ namespace hpp {
       core::Configuration_t q_top;
       const std::string robotName = robot_->device_->name ();
       hppDout (info, "robotName= " << robotName);
-      const bool parabTallEnough = (robotName.compare ("ant") == 0 &&  z_x_theta_max > 0.44) || (robotName.compare ("spiderman") == 0 &&  z_x_theta_max > 1.1) || (robotName.compare ("frog") == 0 &&  z_x_theta_max > 0.4);
+      const bool parabTallEnough = (robotName.compare ("ant") == 0 &&  z_x_theta_max > 0.44) || (robotName.compare ("spiderman") == 0 &&  z_x_theta_max > 1.1) || (robotName.compare ("frog") == 0 &&  z_x_theta_max > 0.2);
       value_type r = 0.5; // blending coefficient of extending key-frame
       const Configuration_t q_interp_top = (*bp) (u_max*pathLength, success);
 
       if (parabTallEnough)
-	r = 0.66;
+	r = 0.8;
       else
-	r = 0.33;
+	r = 0.4;
       hppDout (info, "r of blending extending pose= " << r);
       
       if (extendingPose_.rows ()) {
@@ -387,18 +387,19 @@ namespace hpp {
 	// compute average-normal corresponding to new contacts
 	std::queue<std::string> contactStack = state2.contactOrder_;
 	fcl::Vec3f normalAv = (0,0,0);
+	const std::size_t contactNumber = contactStack.size ();
 	while(!contactStack.empty())
         {
 	  const std::string name = contactStack.front();
 	  contactStack.pop();
 	  const fcl::Vec3f& normal = state2.contactNormals_.at(name);
 	  for (std::size_t j = 0; j < 3; j++)
-	    normalAv [j] += normal [j]/contactStack.size ();
+	    normalAv [j] += normal [j]/contactNumber;
 	}
 	normalAv.normalize ();
 	hppDout (info, "normed normalAv= " << normalAv);
 	// If robot has ECS, fill new average-normal in it
-	if (robot_->device_->extraConfigSpace ().dimension () > 3) {
+	if (robot_->device_->extraConfigSpace ().dimension () > 3 && normalAv.norm () > 0.9) {
 	  const std::size_t indexECS = robot_->device_->configSize () - robot_->device_->extraConfigSpace ().dimension ();
 	  for (std::size_t i = 0; i < 3; i++)
 	    q2contact [indexECS + i] = normalAv [i];
