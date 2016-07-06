@@ -1,4 +1,3 @@
-
 // Copyright (c) 2014, LAAS-CNRS
 // Authors: Steve Tonneau (steve.tonneau@laas.fr)
 //
@@ -203,7 +202,7 @@ namespace hpp {
       sampling::T_OctreeReport finalSet;
       fcl::Contact contact;
       fcl::Vec3f normal;
-      for(std::vector<sampling::Sample>::const_iterator cit = limb->sampleContainer_.samples_.begin();
+      for(sampling::SampleVector_t::const_iterator cit = limb->sampleContainer_.samples_.begin();
           cit != limb->sampleContainer_.samples_.end(); ++cit){
         sampling::OctreeReport report(&(*cit),contact,(*cit).staticValue_,normal );
         finalSet.insert(report);
@@ -231,9 +230,8 @@ namespace hpp {
                 current.configuration_ = configuration;
                 return true;
             }
-        }
+        }*/
         return false;
-        */
     }
 
     // first step
@@ -409,6 +407,8 @@ namespace hpp {
                                                                                          localFrame,
                                                                                          setTranslationConstraints(normal))));//
 
+
+
               if(limb->contactType_ == hpp::rbprm::_6_DOF)
               {
                   proj->add(core::NumericalConstraint::create (constraints::Orientation::create("",body->device_,
@@ -533,7 +533,6 @@ else
           current.contactRotation_[limbId] = rotation;
           current.configuration_ = configuration;
           current.contactOrder_.push(limbId);
-	  hppDout (info, "sample found or unstable");
       }
       return status;
     }
@@ -710,6 +709,10 @@ else
             if (!RepositionContacts(result, body, body->collisionValidation_, config, collisionObjects, direction, robustnessTreshold))
             {
                 std::cout << "planner is stuck; failure " <<  std::endl;
+                body->device_->currentConfiguration(save);
+                body->device_->controlComputation (flag);
+                result.nbContacts = 0;
+                return result;
             }
         }
         // One contact break already happened, the state is invalid
