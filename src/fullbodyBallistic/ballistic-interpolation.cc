@@ -253,8 +253,13 @@ namespace hpp {
       //result = replaceLimbConfigsInFullConfig (q_interp,                                               q_contact_offset, fixedLimbs);
       
       // replace the limbs not used for contact with their configuration in flexionPose_
-        for( rbprm::T_Limb::const_iterator lit = robot_->GetLimbs().begin();lit != robot_->GetLimbs().end(); ++lit){
+      size_t minIndex = robot_->device_->configSize();
+      
+      for( rbprm::T_Limb::const_iterator lit = robot_->GetLimbs().begin();lit != robot_->GetLimbs().end(); ++lit){
         hppDout(notice,"LIST OF LIMBS : "<< lit->first << "contact = "<<lastState.contacts_[lit->first]);
+        if(lit->second->limb_->rankInConfiguration() < minIndex){
+          minIndex =lit->second->limb_->rankInConfiguration();
+        }
         if( ! lastState.contacts_[lit->first]){ // limb is not in contact
           hppDout(notice," Not in contact, index config : "<<lit->second->limb_->rankInConfiguration()<<" -> "<<lit->second->effector_->rankInConfiguration());
           for(size_t i = lit->second->limb_->rankInConfiguration() ; i < lit->second->effector_->rankInConfiguration() ; i++){
@@ -262,6 +267,12 @@ namespace hpp {
           }
         } 
       }
+      
+      // replace the trunkDOF with contactPose value : (we suppose we always work with freeflyer as root ....)
+      for (size_t i = 7 ; i < minIndex ; i++){
+        q_contact_offset[i] = flexionPose_[i];
+      }
+      
       return q_contact_offset;
     }
 
@@ -305,6 +316,32 @@ namespace hpp {
       hppDout (info, "q_top= " << displayConfig(q_top));
       return q_top;
     }
+    
+    
+    Configuration_t BallisticInterpolation::computeContactPose(const State& state){
+      Configuration_t q = state.configuration_;
+
+      size_t minIndex = robot_->device_->configSize();
+      // replace the limbs not used for contact with their configuration in flexionPose_
+      for( rbprm::T_Limb::const_iterator lit = robot_->GetLimbs().begin();lit != robot_->GetLimbs().end(); ++lit){
+        hppDout(notice,"Contact Pose, LIST OF LIMBS  : "<< lit->first << "contact = "<<state.contacts_.at(lit->first));
+        if(lit->second->limb_->rankInConfiguration() < minIndex){
+          minIndex =lit->second->limb_->rankInConfiguration();
+        }
+        if( !state.contacts_.at(lit->first)){ // limb is not in contact
+          hppDout(notice," Not in contact, index config : "<<lit->second->limb_->rankInConfiguration()<<" -> "<<lit->second->effector_->rankInConfiguration());
+          for(size_t i = lit->second->limb_->rankInConfiguration() ; i < lit->second->effector_->rankInConfiguration() ; i++){
+            q[i] = contactPose_[i];
+          }
+        } 
+      }
+      
+      // replace the trunkDOF with contactPose value : (we suppose we always work with freeflyer as root ....)
+      for (size_t i = 7 ; i < minIndex ; i++){
+        q[i] = contactPose_[i];
+      }
+      return q;
+    }
 
     Configuration_t BallisticInterpolation::blendPoses 
     (const Configuration_t q1, const Configuration_t q2, const value_type r)
@@ -347,8 +384,8 @@ namespace hpp {
     core::PathVectorPtr_t BallisticInterpolation::InterpolateFullPath
     (const core::value_type u_offset) {
       if(!path_) throw std::runtime_error ("Cannot interpolate; not path given to interpolator ");
-      Configuration_t qStart = start_.configuration_;
-      Configuration_t qEnd = end_.configuration_;
+      Configuration_t qStart = computeContactPose(start_);
+      Configuration_t qEnd = computeContactPose(end_);
       core::DevicePtr_t robot = robot_->device_;
       Configuration_t q1 (robot->configSize ()), q2(robot->configSize ()),
 	q1contact (robot->configSize ()), q2contact (robot->configSize ());
@@ -394,7 +431,7 @@ namespace hpp {
 	dir = computeDir (V0, Vimp);
 	hppDout (info, "dir (Vimp-V0)= " << dir);
 	state2 = ComputeContacts(robot_, q2, collisionObjects, dir);
-	q2contact = state2.configuration_;
+	q2contact = computeContactPose(state2);
 	// compute average-normal corresponding to new contacts
 	std::queue<std::string> contactStack = state2.contactOrder_;
 	fcl::Vec3f normalAv = (0,0,0);
@@ -499,8 +536,8 @@ namespace hpp {
     (const core::value_type u_offset) {
       if(!path_) throw std::runtime_error ("Cannot interpolate; not path given to interpolator ");
       hppDout (info, "direct B-interpolation");
-      Configuration_t qStart = start_.configuration_;
-      Configuration_t qEnd = end_.configuration_;
+      Configuration_t qStart = computeContactPose(start_);
+      Configuration_t qEnd = computeContactPose(end_);
       core::DevicePtr_t robot = robot_->device_;
       Configuration_t q1 (robot->configSize ()), q2(robot->configSize ()),
 	q1contact (robot->configSize ()), q2contact (robot->configSize ());
