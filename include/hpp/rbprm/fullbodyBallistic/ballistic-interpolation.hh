@@ -110,6 +110,15 @@ namespace hpp {
       core::Configuration_t flexionPose () {
 	return flexionPose_;
       }
+      
+      void contactPose (const core::Configuration_t contactPose) {
+	contactPose_ = contactPose;
+      }
+
+      core::Configuration_t contactPose () {
+	return contactPose_;
+      }
+      
 
       const core::PathVectorConstPtr_t path_;
       const State start_;
@@ -210,6 +219,7 @@ namespace hpp {
       BallisticInterpolationWkPtr_t weakPtr_;
       core::Configuration_t extendingPose_;
       core::Configuration_t flexionPose_;
+      core::Configuration_t contactPose_;
     }; // class BallisticInterpolation
   } // namespace rbprm
 } // namespace hpp
