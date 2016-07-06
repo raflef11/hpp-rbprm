@@ -260,7 +260,6 @@ bool rbprm::sampling::GetCandidates(const SampleDB& sc, const fcl::Transform3f& 
                 normal.normalize();
                 Eigen::Vector3d eNormal(normal[0], normal[1], normal[2]);
 
-                hppDout(notice,"TEST HERE : "<<sit->configuration_);
                 OctreeReport report(&(*sit), contact, evaluate ? ((evaluate)(*sit, eDir, eNormal)) :0, normal);
                 ++okay;
                 reports.insert(report);

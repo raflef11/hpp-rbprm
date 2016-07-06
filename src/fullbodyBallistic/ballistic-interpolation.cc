@@ -320,21 +320,24 @@ namespace hpp {
     
     Configuration_t BallisticInterpolation::computeContactPose(const State& state){
       Configuration_t q = state.configuration_;
-
+      hppDout(info, "contact configuration = "<<displayConfig(contactPose_));
       size_t minIndex = robot_->device_->configSize();
       // replace the limbs not used for contact with their configuration in flexionPose_
       for( rbprm::T_Limb::const_iterator lit = robot_->GetLimbs().begin();lit != robot_->GetLimbs().end(); ++lit){
-        hppDout(notice,"Contact Pose, LIST OF LIMBS  : "<< lit->first << "contact = "<<state.contacts_.at(lit->first));
+        hppDout(notice,"Contact Pose, LIST OF LIMBS  : "<< lit->first << "contact = "<<(state.contacts_.find(lit->first) != state.contacts_.end()));
         if(lit->second->limb_->rankInConfiguration() < minIndex){
-          minIndex =lit->second->limb_->rankInConfiguration();
+          hppDout(notice," Min index = "<<lit->second->limb_->rankInConfiguration()) ;         
+          minIndex = lit->second->limb_->rankInConfiguration();
         }
-        if( !state.contacts_.at(lit->first)){ // limb is not in contact
+        if( (state.contacts_.find(lit->first) != state.contacts_.end())){ // limb is not in contact
           hppDout(notice," Not in contact, index config : "<<lit->second->limb_->rankInConfiguration()<<" -> "<<lit->second->effector_->rankInConfiguration());
           for(size_t i = lit->second->limb_->rankInConfiguration() ; i < lit->second->effector_->rankInConfiguration() ; i++){
             q[i] = contactPose_[i];
           }
         } 
       }
+      
+     
       
       // replace the trunkDOF with contactPose value : (we suppose we always work with freeflyer as root ....)
       for (size_t i = 7 ; i < minIndex ; i++){
