@@ -23,7 +23,7 @@ namespace
    octomap::OcTree* generateOctree(const T_Sample& samples, const double resolution)
    {
        octomap::OcTree* octTree = new octomap::OcTree(resolution);
-       for(std::vector<Sample>::const_iterator cit = samples.begin();
+       for(SampleVector_t::const_iterator cit = samples.begin();
            cit != samples.end(); ++cit)
        {
            const fcl::Vec3f& position = cit->effectorPosition_;
@@ -35,11 +35,11 @@ namespace
    }
 
    typedef std::map<long int, std::vector<std::size_t> > T_VoxelSample;
-   T_VoxelSample getSamplesPerVoxel(const boost::shared_ptr<const octomap::OcTree>& octTree, const std::vector<Sample>& samples)
+   T_VoxelSample getSamplesPerVoxel(const boost::shared_ptr<const octomap::OcTree>& octTree, const SampleVector_t& samples)
    {
        T_VoxelSample res;
        std::size_t sid = 0;
-       for(std::vector<Sample>::const_iterator cit=samples.begin(); cit!=samples.end();++cit, ++sid)
+       for(SampleVector_t::const_iterator cit=samples.begin(); cit!=samples.end();++cit, ++sid)
        {
            const fcl::Vec3f& position = cit->effectorPosition_;
            long int id = octTree->search(position[0],position[1],position[2]) - octTree->getRoot();
@@ -238,8 +238,13 @@ bool rbprm::sampling::GetCandidates(const SampleDB& sc, const fcl::Transform3f& 
         //verifying that position is theoritically reachable from next position
         {
             voxelIt = sc.samplesInVoxels_.find(contact.b1);
+            if(voxelIt == sc.samplesInVoxels_.end()){
+              return false;
+            }
             const VoxelSampleId& voxelSampleIds = voxelIt->second;
             totalSamples += (int)voxelSampleIds.second;
+
+            
             for(T_Sample::const_iterator sit = sc.samples_.begin()+ voxelSampleIds.first;
                 sit != sc.samples_.begin()+ voxelSampleIds.first + voxelSampleIds.second; ++sit)
             {
@@ -254,6 +259,8 @@ bool rbprm::sampling::GetCandidates(const SampleDB& sc, const fcl::Transform3f& 
                 normal = (v2 - v1).cross(v3 - v1);
                 normal.normalize();
                 Eigen::Vector3d eNormal(normal[0], normal[1], normal[2]);
+
+                hppDout(notice,"TEST HERE : "<<sit->configuration_);
                 OctreeReport report(&(*sit), contact, evaluate ? ((evaluate)(*sit, eDir, eNormal)) :0, normal);
                 ++okay;
                 reports.insert(report);
