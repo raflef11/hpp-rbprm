@@ -382,7 +382,7 @@ namespace hpp {
       hppDout (info, "finalSet size: " << finalSet.size ());
       for(;!found_sample && it!=finalSet.end(); ++it)
       {
-	hppDout (info, "iteration on samples");
+	//hppDout (info, "iteration on samples");
           const sampling::OctreeReport& bestReport = *it;
           sampling::Load(*bestReport.sample_, configuration);
           body->device_->currentConfiguration(configuration);

@@ -238,8 +238,13 @@ bool rbprm::sampling::GetCandidates(const SampleDB& sc, const fcl::Transform3f& 
         //verifying that position is theoritically reachable from next position
         {
             voxelIt = sc.samplesInVoxels_.find(contact.b1);
+            if(voxelIt == sc.samplesInVoxels_.end()){
+              return false;
+            }
             const VoxelSampleId& voxelSampleIds = voxelIt->second;
             totalSamples += (int)voxelSampleIds.second;
+
+            
             for(T_Sample::const_iterator sit = sc.samples_.begin()+ voxelSampleIds.first;
                 sit != sc.samples_.begin()+ voxelSampleIds.first + voxelSampleIds.second; ++sit)
             {
@@ -254,6 +259,8 @@ bool rbprm::sampling::GetCandidates(const SampleDB& sc, const fcl::Transform3f& 
                 normal = (v2 - v1).cross(v3 - v1);
                 normal.normalize();
                 Eigen::Vector3d eNormal(normal[0], normal[1], normal[2]);
+
+                hppDout(notice,"TEST HERE : "<<sit->configuration_);
                 OctreeReport report(&(*sit), contact, evaluate ? ((evaluate)(*sit, eDir, eNormal)) :0, normal);
                 ++okay;
                 reports.insert(report);
