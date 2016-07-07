@@ -351,7 +351,10 @@ namespace hpp {
     }
     
     Configuration_t BallisticInterpolation::computeContactPose(const State& state){
-      rbprm::computeContactPose(state,contactPose_,robot_);
+      if(contactPose_.size() == 0)
+        return state.configuration_;
+      else
+        return rbprm::computeContactPose(state,contactPose_,robot_);
     }
 
     Configuration_t BallisticInterpolation::blendPoses 
