@@ -110,6 +110,15 @@ namespace hpp {
       core::Configuration_t flexionPose () {
 	return flexionPose_;
       }
+      
+      void contactPose (const core::Configuration_t contactPose) {
+	contactPose_ = contactPose;
+      }
+
+      core::Configuration_t contactPose () {
+	return contactPose_;
+      }
+      
 
       const core::PathVectorConstPtr_t path_;
       const State start_;
@@ -198,6 +207,18 @@ namespace hpp {
       core::Configuration_t computeTopExtendingPose 
 	(const core::PathPtr_t path, const BallisticPathPtr_t bp);
 
+      
+      /**
+       * @brief computeContactPose compute the configuration of a waypoint. In contact with the environnement.
+       * Must be called after COmputeContact for the given State.
+       * It return the configuration of the state exept for the trunk DOF and the limb which aren't in contact
+       * @param state 
+       * @return the configuration
+       */
+      core::Configuration_t computeContactPose(const State &state); 
+
+
+      
       /// Blend the two configurations with a as ratio:
       /// result = r*q1 + (1-r)*q2
       core::Configuration_t blendPoses (const core::Configuration_t q1,
@@ -210,7 +231,12 @@ namespace hpp {
       BallisticInterpolationWkPtr_t weakPtr_;
       core::Configuration_t extendingPose_;
       core::Configuration_t flexionPose_;
+      core::Configuration_t contactPose_;
     }; // class BallisticInterpolation
+    
+    core::Configuration_t computeContactPose(const State &state, core::Configuration_t contactPose,rbprm::RbPrmFullBodyPtr_t robot); 
+
+    
   } // namespace rbprm
 } // namespace hpp
 

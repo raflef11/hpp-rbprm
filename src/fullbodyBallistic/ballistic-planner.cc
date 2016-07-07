@@ -428,12 +428,16 @@ namespace hpp {
     }
     hppDout(info,"number of contacts : "<<result.numContacts());
     polytope::vector3_t normal;
-    for(size_t k=0 ; k < result.numContacts() ; k++){
+   /* for(size_t k=0 ; k < result.numContacts() ; k++){
       normal = -result.getContact(k).normal; // of contact surface
      // hppDout(info,"normal =  : "<<normal);
       for (std::size_t i = 0; i < 3; i++) {
           normalAv [i] += normal [i]/result.numContacts();
       }
+    }*/
+    normal = -result.getContact(0).normal; // of contact surface    
+    for (std::size_t i = 0; i < 3; i++) {
+        normalAv [i] += normal [i]/nbNormalAv;
     }
   } // for each ROMS
   normalAv.normalize ();
