@@ -233,6 +233,10 @@ namespace hpp {
       core::Configuration_t flexionPose_;
       core::Configuration_t contactPose_;
     }; // class BallisticInterpolation
+    
+    core::Configuration_t computeContactPose(const State &state, core::Configuration_t contactPose,rbprm::RbPrmFullBodyPtr_t robot); 
+
+    
   } // namespace rbprm
 } // namespace hpp
 
