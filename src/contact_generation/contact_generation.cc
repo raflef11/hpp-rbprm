@@ -489,7 +489,7 @@ ProjectionReport gen_contacts(ContactGenHelper &contactGenHelper)
         candidates.pop();
         bool checkStability(contactGenHelper.checkStabilityGenerate_);
         contactGenHelper.checkStabilityGenerate_ = false; // stability not mandatory before last contact is created
-        if(cState.second.empty() && contactGenHelper.workingState_.stable)
+        if(cState.second.empty() && (contactGenHelper.workingState_.stable || (stability::IsStable(contactGenHelper.fullBody_,contactGenHelper.workingState_,contactGenHelper.acceleration_) > contactGenHelper.robustnessTreshold_ )) )
         {
             bool reqLimValid(true);
             // check if all required contacts are active
