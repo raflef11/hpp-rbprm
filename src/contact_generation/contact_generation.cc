@@ -514,10 +514,11 @@ ProjectionReport gen_contacts(ContactGenHelper &contactGenHelper)
             // define the ZMP heuristic parameters
             sampling::HeuristicParam params;
             params.contactPositions_ = cState.first.contactPositions_;
-            params.previousContactPositions_ = contactGenHelper.previousState_.contactPositions_;
-            params.comAcceleration_ = contactGenHelper.acceleration_;
             contactGenHelper.fullBody_->device_->computeForwardKinematics();
             params.comPosition_ = contactGenHelper.fullBody_->device_->positionCenterOfMass();
+            int cfgSize(cState.first.configuration_.rows());
+            params.comSpeed_ = fcl::Vec3f(cState.first.configuration_[cfgSize-6], cState.first.configuration_[cfgSize-5], cState.first.configuration_[cfgSize-4]);
+            params.comAcceleration_ = contactGenHelper.acceleration_;
             params.sampleLimbName_ = *cit;
             params.tfWorldRoot_ = contactGenHelper.fullBody_->device_->rootJoint()->currentTransformation();
 
@@ -565,10 +566,11 @@ projection::ProjectionReport repositionContacts(ContactGenHelper& helper)
 
             sampling::HeuristicParam params;
             params.contactPositions_ = helper.workingState_.contactPositions_;
-            params.previousContactPositions_ = helper.previousState_.contactPositions_;
-            params.comAcceleration_ = helper.acceleration_;
             helper.fullBody_->device_->computeForwardKinematics();
             params.comPosition_ = helper.fullBody_->device_->positionCenterOfMass();
+            int cfgSize(helper.workingState_.configuration_.rows());
+            params.comSpeed_ = fcl::Vec3f(helper.workingState_.configuration_[cfgSize-6], helper.workingState_.configuration_[cfgSize-5], helper.workingState_.configuration_[cfgSize-4]);
+            params.comAcceleration_ = helper.acceleration_;
             params.sampleLimbName_ = *cit;
             params.tfWorldRoot_ = helper.fullBody_->device_->rootJoint()->currentTransformation();
 

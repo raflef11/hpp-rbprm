@@ -24,7 +24,7 @@ using namespace hpp::model;
 using namespace hpp::rbprm;
 using namespace hpp::rbprm::sampling;
 
-double ZMPHeuristic(const sampling::Sample & sample, const Eigen::Vector3d & direction, const Eigen::Vector3d & /*normal*/, const HeuristicParam & params)
+double dynamicHeuristic(const sampling::Sample & sample, const Eigen::Vector3d & /*direction*/, const Eigen::Vector3d & /*normal*/, const HeuristicParam & params)
 {
     fcl::Vec3f effectorPosition = transform(sample.effectorPosition_, params.tfWorldRoot_.getTranslation(), params.tfWorldRoot_.getRotation());
 
@@ -32,44 +32,21 @@ double ZMPHeuristic(const sampling::Sample & sample, const Eigen::Vector3d & dir
     contacts.insert(params.contactPositions_.begin(), params.contactPositions_.end());
     contacts.insert(std::make_pair(params.sampleLimbName_, effectorPosition));
 
-    Vec2D zmp;
-    double g(params.g_);
+    // We want : |w1*comSpeed| > |w2*comAcceleration|
+    double g(-9.80665);
+    double w2(params.comPosition_[2]/g); // w2 < 0
+    double w1(-10*w2); // w1 > 0
 
-    Vec2D dir(direction[0], direction[1]);
-    Vec2D acc(params.comAcceleration_[0], params.comAcceleration_[1]);
-    double pi(3.141592653589793);
-    if(computeAngle(Vec2D(0, 0), dir, acc) >= (pi/2))
-        g = -g;
+    double x_interest(params.comPosition_[0] + w1*params.comSpeed_[0] + w2*params.comAcceleration_[0]);
+    double y_interest(params.comPosition_[1] + w1*params.comSpeed_[1] + w2*params.comAcceleration_[1]);
+
+    Vec2D interest(x_interest, y_interest);
 
     double result;
-
-    if(params.lightVersion_)
-    {
-        double x_zmp(params.comPosition_[0] - (params.comPosition_[2]/g)*params.comAcceleration_[0]);
-        double y_zmp(params.comPosition_[1] - (params.comPosition_[2]/g)*params.comAcceleration_[1]);
-        zmp = Vec2D(x_zmp, y_zmp);
-    }
-    else
-    {
-        double zAccel(g + params.comAcceleration_[2]);
-        double epsi(1e-9);
-        // if the z-forces are in balance
-        if(std::abs(zAccel) <= epsi) // zAccel == 0
-        {
-            if((std::abs(params.comAcceleration_[0]) > epsi) || (std::abs(params.comAcceleration_[1]) > epsi)) // (params.comAcceleration_[0] != 0) || (params.comAcceleration_[1] != 0)
-                result = std::numeric_limits<double>::max();
-            else
-                result = Vec2D::euclideanDist(Vec2D(params.comPosition_[0], params.comPosition_[1]), weightedCentroidConvex2D(convexHull(computeSupportPolygon(contacts))));
-            return -result; // '-' because minimize a value is equivalent to maximimze its opposite
-        }
-        double x_zmp(params.comPosition_[0] - (params.comPosition_[2]/zAccel)*params.comAcceleration_[0]);
-        double y_zmp(params.comPosition_[1] - (params.comPosition_[2]/zAccel)*params.comAcceleration_[1]);
-        zmp = Vec2D(x_zmp, y_zmp);
-    }
     try
     {
         Vec2D wcentroid(weightedCentroidConvex2D(convexHull(computeSupportPolygon(contacts))));
-        result = Vec2D::euclideanDist(zmp, wcentroid);
+        result = Vec2D::euclideanDist(interest, wcentroid);
     }
     catch(std::string s)
     {
@@ -77,54 +54,6 @@ double ZMPHeuristic(const sampling::Sample & sample, const Eigen::Vector3d & dir
         result = std::numeric_limits<double>::max();
     }
     return -result; // '-' because minimize a value is equivalent to maximimze its opposite
-}
-double StraightCentroidHeuristic(const sampling::Sample & sample, const Eigen::Vector3d & direction, const Eigen::Vector3d & /*normal*/, const HeuristicParam & params)
-{
-    // Try to keep the centroid vector (formed by the previous centroid and the current centroid) aligned with the direction vector of movement
-    double res;
-    if(!params.previousContactPositions_.empty())
-    {
-        Vec2D base_p(weightedCentroidConvex2D(convexHull(computeSupportPolygon(params.previousContactPositions_))));
-        fcl::Vec3f effectorPosition = transform(sample.effectorPosition_, params.tfWorldRoot_.getTranslation(), params.tfWorldRoot_.getRotation());
-        std::map <std::string, fcl::Vec3f> contacts;
-        contacts.insert(params.contactPositions_.begin(), params.contactPositions_.end());
-        contacts.insert(std::make_pair(params.sampleLimbName_, effectorPosition));
-        Vec2D end1_p(weightedCentroidConvex2D(convexHull(computeSupportPolygon(contacts))));
-        Vec2D end2_p(base_p.x + direction[0], base_p.y + direction[1]);
-        double coeff(1.0/(1e-9 + computeAngle(base_p, end1_p, end2_p))); // The more we move along the direction, the more the coeff is important (because the ideal angle is 0)
-        res = coeff * Vec2D::euclideanDist(base_p, end1_p); // Try to increase the path length as far as possible in the direction of movement
-    }
-    else
-    {
-        fcl::Vec3f effectorPosition = transform(sample.effectorPosition_, params.tfWorldRoot_.getTranslation(), params.tfWorldRoot_.getRotation());
-        std::map <std::string, fcl::Vec3f> contacts;
-        contacts.insert(params.contactPositions_.begin(), params.contactPositions_.end());
-        Vec2D base_p(0, 0);
-        if(!contacts.empty())
-            base_p = Vec2D(weightedCentroidConvex2D(convexHull(computeSupportPolygon(contacts))));
-        contacts.insert(std::make_pair(params.sampleLimbName_, effectorPosition));
-        Vec2D wcen(weightedCentroidConvex2D(convexHull(computeSupportPolygon(contacts))));
-        Vec2D end_p(base_p.x + direction[0], base_p.y + direction[1]);
-
-        Line2D * line = StraightLine2DManager::straightLineFromPoints2D(base_p, end_p);
-        double dist(StraightLine2DManager::distanceToStraightLine2D(wcen, line));
-        delete line;
-
-        double coeff(1.0/(1e-9 + dist)); // The more we are close of the direction line (based in 0), the more the coeff is important
-        double resX( (end_p.x >= 0) ? wcen.x : -wcen.x );
-        double resY( (end_p.y >= 0) ? wcen.y : -wcen.y );
-        res = coeff * (resX + resY);
-    }
-    return res;
-}
-double CombinedCentroidZMPHeuristic(const sampling::Sample & sample, const Eigen::Vector3d & direction, const Eigen::Vector3d & normal, const HeuristicParam & params)
-{
-    double res;
-    if((std::abs(params.comAcceleration_[0]) <= 1e-3) && (std::abs(params.comAcceleration_[1]) <= 1e-3))
-        res = StraightCentroidHeuristic(sample, direction, normal, params);
-    else
-        res = ZMPHeuristic(sample, direction, normal, params);
-    return res;
 }
 
 double EFORTHeuristic(const sampling::Sample& sample,
@@ -218,9 +147,7 @@ HeuristicFactory::HeuristicFactory()
     heuristics_.insert(std::make_pair("forward", &ForwardHeuristic));
     heuristics_.insert(std::make_pair("backward", &BackwardHeuristic));
     heuristics_.insert(std::make_pair("jointlimits", &DistanceToLimitHeuristic));
-    heuristics_.insert(std::make_pair("ZMP", &ZMPHeuristic));
-    heuristics_.insert(std::make_pair("straightCentroid", &StraightCentroidHeuristic));
-    heuristics_.insert(std::make_pair("combined", &CombinedCentroidZMPHeuristic));
+    heuristics_.insert(std::make_pair("dynamic", &dynamicHeuristic));
 }
 
 HeuristicFactory::~HeuristicFactory(){}

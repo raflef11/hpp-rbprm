@@ -1,7 +1,7 @@
 #ifndef HPP_HEURISTIC_TOOLS_HH
 #define HPP_HEURISTIC_TOOLS_HH
 
-#include <hpp/model/device.hh> // trick to get the includes of fcl, ...
+#include <hpp/model/device.hh> // way to get the includes of fcl, ...
 #include <map>
 
 namespace hpp{
@@ -12,17 +12,15 @@ namespace sampling{
     struct HeuristicParam
     {
         std::map<std::string, fcl::Vec3f> contactPositions_; // to get the others contacts (without the considered sample)
-        std::map<std::string, fcl::Vec3f> previousContactPositions_; // to get the contacts positions at the previous state
-        fcl::Vec3f comAcceleration_; // The CoM acceleration
         fcl::Vec3f comPosition_; // The CoM position
+        fcl::Vec3f comSpeed_; // The CoM speed
+        fcl::Vec3f comAcceleration_; // The CoM acceleration
         std::string sampleLimbName_; // The name of the considered sample
         fcl::Transform3f tfWorldRoot_; // The transform between the world coordinate system and the root of the robot
-        bool lightVersion_; // To true if we don't want to consider z-CoM accelerations
-        double g_; // The gravity acceleration
 
-        HeuristicParam() : lightVersion_(true), g_(-9.80665) {}
-        HeuristicParam(const std::map<std::string, fcl::Vec3f> & cp, const std::map<std::string, fcl::Vec3f> & ocp, const fcl::Vec3f & comAcc, const fcl::Vec3f & comPos,
-                          const std::string & sln, const fcl::Transform3f & tf, bool lv = true);
+        HeuristicParam() {}
+        HeuristicParam(const std::map<std::string, fcl::Vec3f> & cp, const fcl::Vec3f & comPos, const fcl::Vec3f & comSp, const fcl::Vec3f & comAcc,
+                          const std::string & sln, const fcl::Transform3f & tf);
         HeuristicParam(const HeuristicParam & zhp);
 
         HeuristicParam & operator=(const HeuristicParam & zhp);
@@ -105,121 +103,6 @@ namespace sampling{
     /// \param convexPolygon The convex polygon to whom we want to find the weighted centroid
     /// \return The weighted centroid of the specified convex polygon
     Vec2D weightedCentroidConvex2D(const std::vector <Vec2D> & convexPolygon);
-
-    /// Enumeration to define the form of a straight line equation
-    enum FORM {X_FORM, Y_FORM};
-
-    /// Class to define a straight line 2D
-    class Line2D
-    {
-        public:
-            virtual ~Line2D() {};
-            virtual FORM form() const = 0;
-    };
-
-    /// Template class to specialize the Line2D class under a specified form
-    template<typename T>
-    class StraightLine2D : public Line2D
-    {
-        protected:
-            T equation;
-
-        public:
-            StraightLine2D()
-            {}
-            StraightLine2D(const T & eq) : equation(eq)
-            {}
-            StraightLine2D(const StraightLine2D<T> & sl) : equation(sl.eq)
-            {}
-
-            void setEquation(const T & eq)
-            {
-                this->equation = eq;
-            }
-            T getEquation() const
-            {
-                return this->equation;
-            }
-
-            StraightLine2D<T> & operator=(const StraightLine2D<T> & sl)
-            {
-                if(this != &sl)
-                {
-                    this->equation = sl.equation;
-                }
-                return *this;
-            }
-    };
-
-    /// Template class specialization to define a straight line under the standard form : y = ax + b
-    template<>
-    class StraightLine2D <Vec2D> : public Line2D
-    {
-        protected:
-            Vec2D equation; // [a, b] such as: y = ax + b
-
-        public:
-            StraightLine2D()
-            {}
-            StraightLine2D(const Vec2D & eq);
-            StraightLine2D(const StraightLine2D<Vec2D> & sl);
-
-            void setEquation(const Vec2D & eq);
-            Vec2D getEquation() const;
-            FORM form() const;
-
-            StraightLine2D<Vec2D> & operator=(const StraightLine2D<Vec2D> & sl);
-    };
-
-    /// Template class specialization to define a straight line under the x-form (singularity of the standard form, vertical straight line) : x = a
-    template<>
-    class StraightLine2D <double> : public Line2D
-    {
-        protected:
-            double equation; // a such as: x = a
-
-        public:
-            StraightLine2D() : equation(0)
-            {}
-            StraightLine2D(const double & eq);
-            StraightLine2D(const StraightLine2D<double> & sl);
-
-            void setEquation(const double & eq);
-            double getEquation() const;
-            FORM form() const;
-
-            StraightLine2D<double> & operator=(const StraightLine2D<double> & sl);
-    };
-
-    /// Factory to build straight lines
-    class StraightLine2DFactory
-    {
-        protected:
-            FORM factory_type;
-
-        public:
-            StraightLine2DFactory(FORM ft);
-            StraightLine2DFactory(const StraightLine2DFactory & slf);
-
-            void setFactoryType(FORM ft);
-            FORM getFactoryType() const;
-
-            Line2D * create() const;
-
-            // if we don't want to create an instance to a specific factory type
-            static Line2D * create(FORM ft);
-    };
-
-    /// Class to manage straight lines
-    class StraightLine2DManager
-    {
-        public:
-            // get the straight line equation knowing two points
-            static Line2D * straightLineFromPoints2D(const Vec2D & p1, const Vec2D & p2);
-
-            // get the distance between a point and a straight line
-            static double distanceToStraightLine2D(const Vec2D & point, const Line2D * line);
-    };
 
 } // namespace sampling
 } // namespace rbprm

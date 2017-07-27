@@ -134,10 +134,11 @@ ContactComputationStatus ComputeStableContact(const hpp::rbprm::RbPrmFullBodyPtr
                                       direction,acceleration,contactIfFails,stableForOneContact);
     sampling::HeuristicParam params;
     params.contactPositions_ = current.contactPositions_;
-    params.previousContactPositions_ = contactGenHelper.previousState_.contactPositions_;
-    params.comAcceleration_ = contactGenHelper.acceleration_;
     contactGenHelper.fullBody_->device_->computeForwardKinematics();
     params.comPosition_ = contactGenHelper.fullBody_->device_->positionCenterOfMass();
+    int cfgSize(contactGenHelper.workingState_.configuration_.rows());
+    params.comSpeed_ = fcl::Vec3f(contactGenHelper.workingState_.configuration_[cfgSize-6], contactGenHelper.workingState_.configuration_[cfgSize-5], contactGenHelper.workingState_.configuration_[cfgSize-4]);
+    params.comAcceleration_ = contactGenHelper.acceleration_;
     params.sampleLimbName_ = limbId;
     params.tfWorldRoot_ = contactGenHelper.fullBody_->device_->rootJoint()->currentTransformation();
 

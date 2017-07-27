@@ -4,24 +4,20 @@ namespace hpp{
 namespace rbprm{
 namespace sampling{
 
-HeuristicParam::HeuristicParam(const std::map<std::string, fcl::Vec3f> & cp, const std::map<std::string, fcl::Vec3f> & ocp,
-const fcl::Vec3f & comAcc, const fcl::Vec3f & comPos, const std::string & sln, const fcl::Transform3f & tf, bool lv) : contactPositions_(cp),
-                                                                                                                       previousContactPositions_(ocp),
-                                                                                                                       comAcceleration_(comAcc),
-                                                                                                                       comPosition_(comPos),
-                                                                                                                       sampleLimbName_(sln),
-                                                                                                                       tfWorldRoot_(tf),
-                                                                                                                       lightVersion_(lv),
-                                                                                                                       g_(-9.80665)
+HeuristicParam::HeuristicParam(const std::map<std::string, fcl::Vec3f> & cp, const fcl::Vec3f & comPos,
+const fcl::Vec3f & comSp, const fcl::Vec3f & comAcc, const std::string & sln, const fcl::Transform3f & tf) : contactPositions_(cp),
+                                                                                                             comPosition_(comPos),
+                                                                                                             comSpeed_(comSp),
+                                                                                                             comAcceleration_(comAcc),
+                                                                                                             sampleLimbName_(sln),
+                                                                                                             tfWorldRoot_(tf)
 {}
 HeuristicParam::HeuristicParam(const HeuristicParam & zhp) : contactPositions_(zhp.contactPositions_),
-                                                             previousContactPositions_(zhp.previousContactPositions_),
-                                                             comAcceleration_(zhp.comAcceleration_),
                                                              comPosition_(zhp.comPosition_),
+                                                             comSpeed_(zhp.comSpeed_),
+                                                             comAcceleration_(zhp.comAcceleration_),
                                                              sampleLimbName_(zhp.sampleLimbName_),
-                                                             tfWorldRoot_(zhp.tfWorldRoot_),
-                                                             lightVersion_(zhp.lightVersion_),
-                                                             g_(-9.80665)
+                                                             tfWorldRoot_(zhp.tfWorldRoot_)
 {}
 HeuristicParam & HeuristicParam::operator=(const HeuristicParam & zhp)
 {
@@ -29,13 +25,11 @@ HeuristicParam & HeuristicParam::operator=(const HeuristicParam & zhp)
     {
         this->contactPositions_.clear();
         this->contactPositions_.insert(zhp.contactPositions_.begin(), zhp.contactPositions_.end());
-        this->previousContactPositions_.clear();
-        this->previousContactPositions_.insert(zhp.previousContactPositions_.begin(), zhp.previousContactPositions_.end());
-        this->comAcceleration_ = zhp.comAcceleration_;
         this->comPosition_ = zhp.comPosition_;
+        this->comSpeed_ = zhp.comSpeed_;
+        this->comAcceleration_ = zhp.comAcceleration_;
         this->sampleLimbName_ = zhp.sampleLimbName_;
         this->tfWorldRoot_ = zhp.tfWorldRoot_;
-        this->lightVersion_ = zhp.lightVersion_;
     }
     return *this;
 }
@@ -357,133 +351,6 @@ Vec2D weightedCentroidConvex2D(const std::vector <Vec2D> & convexPolygon)
         res = Vec2D(resX, resY);
     }
     return res;
-}
-
-// ---------
-
-StraightLine2D<Vec2D>::StraightLine2D(const Vec2D & eq) : equation(eq)
-{}
-StraightLine2D<Vec2D>::StraightLine2D(const StraightLine2D & sl) : equation(sl.equation)
-{}
-void StraightLine2D<Vec2D>::setEquation(const Vec2D & eq)
-{
-	this->equation = eq;
-}
-Vec2D StraightLine2D<Vec2D>::getEquation() const
-{
-	return this->equation;
-}
-FORM StraightLine2D<Vec2D>::form() const
-{
-	return Y_FORM;
-}
-
-StraightLine2D<double>::StraightLine2D(const double & eq) : equation(eq)
-{}
-StraightLine2D<double>::StraightLine2D(const StraightLine2D & sl) : equation(sl.equation)
-{}
-void StraightLine2D<double>::setEquation(const double & eq)
-{
-	this->equation = eq;
-}
-double StraightLine2D<double>::getEquation() const
-{
-	return this->equation;
-}
-FORM StraightLine2D<double>::form() const
-{
-	return X_FORM;
-}
-
-StraightLine2D<Vec2D> & StraightLine2D<Vec2D>::operator=(const StraightLine2D & sl)
-{
-	if(this != &sl)
-	{
-		this->equation = sl.equation;
-	}
-	return *this;
-}
-StraightLine2D<double> & StraightLine2D<double>::operator=(const StraightLine2D & sl)
-{
-	if(this != &sl)
-	{
-		this->equation = sl.equation;
-	}
-	return *this;
-}
-
-StraightLine2DFactory::StraightLine2DFactory(FORM ft) : factory_type(ft)
-{}
-StraightLine2DFactory::StraightLine2DFactory(const StraightLine2DFactory & slf): factory_type(slf.factory_type)
-{}
-void StraightLine2DFactory::setFactoryType(FORM ft)
-{
-	this->factory_type = ft;
-}
-FORM StraightLine2DFactory::getFactoryType() const
-{
-	return this->factory_type;
-}
-Line2D * StraightLine2DFactory::create() const
-{
-	if(this->factory_type == Y_FORM)
-		return new StraightLine2D<Vec2D>();
-	else
-		return new StraightLine2D<double>();
-}
-Line2D * StraightLine2DFactory::create(FORM ft)
-{
-	if(ft == Y_FORM)
-		return new StraightLine2D<Vec2D>();
-	else
-		return new StraightLine2D<double>();
-}
-
-Line2D * StraightLine2DManager::straightLineFromPoints2D(const Vec2D & p1, const Vec2D & p2)
-{
-	FORM ft((std::abs(p1.x - p2.x) < 1e-9) ? X_FORM : Y_FORM);
-	if(ft == X_FORM)
-	{
-		StraightLine2D<double> * res = dynamic_cast<StraightLine2D<double>*>(StraightLine2DFactory::create(ft));
-		res->setEquation(p1.x);
-		return res;
-	}
-	else
-	{
-		StraightLine2D<Vec2D> * res = dynamic_cast<StraightLine2D<Vec2D>*>(StraightLine2DFactory::create(ft));
-		double slope((p2.y - p1.y)/(p2.x - p1.x));
-		double intercept(p1.y - slope*p1.x);
-		res->setEquation(Vec2D(slope, intercept));
-		return res;
-	}
-}
-double StraightLine2DManager::distanceToStraightLine2D(const Vec2D & point, const Line2D * line)
-{
-	double res;
-	if(line->form() == X_FORM)
-	{
-		const StraightLine2D<double> * line_xf = dynamic_cast<const StraightLine2D<double>*>(line);
-		res = std::abs(point.x - line_xf->getEquation());
-	}
-	else
-	{
-		const StraightLine2D<Vec2D> * line_yf = dynamic_cast<const StraightLine2D<Vec2D>*>(line);
-		
-		// get two points of line_yf, pa and pb
-		double a(line_yf->getEquation()[0]), b(line_yf->getEquation()[1]);
-		Vec2D pa(0, b); // x = 0, y = a*0 + b = b
-		Vec2D pb(1, a + b); // x = 1, y = a*1 + b = a+b
-
-		// get the angle theta between the two vectors formed by pa-point and pa-pb
-		Vec2D v1(point.x - pa.x, point.y - pa.y);
-		Vec2D v2(pb.x - pa.x, pb.y - pa.y);
-		double theta(computeAngle(pa, point, pb));
-
-		// get the distance using the sinus of theta and the distance between pa-point (the norm of v1)
-		double n1(std::sqrt(std::pow(v1.x, 2) + std::pow(v1.y, 2)));
-		return (std::sin(theta)*n1);
-	}
-	return res;
 }
 
 } // namespace sampling
