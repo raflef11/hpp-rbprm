@@ -32,13 +32,23 @@ double dynamicHeuristic(const sampling::Sample & sample, const Eigen::Vector3d &
     contacts.insert(params.contactPositions_.begin(), params.contactPositions_.end());
     contacts.insert(std::make_pair(params.sampleLimbName_, effectorPosition));
 
-    // We want : |w1*comSpeed| > |w2*comAcceleration|
     double g(-9.80665);
     double w2(params.comPosition_[2]/g); // w2 < 0
-    double w1(-10*w2); // w1 > 0
+    double w1x(-10*w2); // w1 > 0
+    double w1y(-10*w2); // w1 > 0
 
-    double x_interest(params.comPosition_[0] + w1*params.comSpeed_[0] + w2*params.comAcceleration_[0]);
-    double y_interest(params.comPosition_[1] + w1*params.comSpeed_[1] + w2*params.comAcceleration_[1]);
+    // We want : |w1*comSpeed| > |w2*comAcceleration|
+    while(std::abs(w1x*params.comSpeed_[0]) < std::abs(w2*params.comAcceleration_[0]))
+    {
+        w1x *= 1.5;
+    }
+    while(std::abs(w1y*params.comSpeed_[1]) < std::abs(w2*params.comAcceleration_[1]))
+    {
+        w1y *= 1.5;
+    }
+
+    double x_interest(params.comPosition_[0] + w1x*params.comSpeed_[0] + w2*params.comAcceleration_[0]);
+    double y_interest(params.comPosition_[1] + w1y*params.comSpeed_[1] + w2*params.comAcceleration_[1]);
 
     Vec2D interest(x_interest, y_interest);
 
