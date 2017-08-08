@@ -64,7 +64,7 @@ double dynamicHeuristic(const sampling::Sample & sample, const Eigen::Vector3d &
         Vec2D wcentroid(weightedCentroidConvex2D(convexHull(computeSupportPolygon(contacts))));
         result = Vec2D::euclideanDist(interest, wcentroid);
     }
-    catch(std::string s)
+    catch(const std::string & s)
     {
         std::cout << s << std::endl;
         result = std::numeric_limits<double>::max();
