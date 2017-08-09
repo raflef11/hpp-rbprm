@@ -353,6 +353,25 @@ Vec2D weightedCentroidConvex2D(const std::vector <Vec2D> & convexPolygon)
     return res;
 }
 
+void removeNonGroundContacts(std::map<std::string, fcl::Vec3f> & contacts, double groundThreshold)
+{
+    std::map<std::string, fcl::Vec3f>::const_iterator cit = contacts.begin();
+    double minZ(cit->second[2]);
+    for(; cit != contacts.end(); ++cit)
+    {
+        if(cit->second[2] < minZ)
+            minZ = cit->second[2];
+    }
+    std::vector <std::string> outOfTheGround;
+    for(cit = contacts.begin(); cit != contacts.end(); ++cit)
+    {
+        if(std::abs(cit->second[2] - minZ) > std::abs(groundThreshold))
+            outOfTheGround.push_back(cit->first);
+    }
+    for(unsigned int i = 0; i < outOfTheGround.size(); ++i)
+        contacts.erase(outOfTheGround[i]);
+}
+
 } // namespace sampling
 } // namespace rbprm
 } // namespace hpp

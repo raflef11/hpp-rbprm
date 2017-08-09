@@ -104,6 +104,11 @@ namespace sampling{
     /// \return The weighted centroid of the specified convex polygon
     Vec2D weightedCentroidConvex2D(const std::vector <Vec2D> & convexPolygon);
 
+    /// Remove the contacts that does not belong to the "ground"
+    ///
+    /// \param contacts The considered contacts map
+    void removeNonGroundContacts(std::map<std::string, fcl::Vec3f> & contacts, double groundThreshold);
+
 } // namespace sampling
 } // namespace rbprm
 } // namespace hpp

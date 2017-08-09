@@ -31,6 +31,8 @@ double dynamicHeuristic(const sampling::Sample & sample, const Eigen::Vector3d &
     std::map <std::string, fcl::Vec3f> contacts;
     contacts.insert(params.contactPositions_.begin(), params.contactPositions_.end());
     contacts.insert(std::make_pair(params.sampleLimbName_, effectorPosition));
+    double gt(0.25);
+    removeNonGroundContacts(contacts, gt); // keep only ground contacts
 
     double g(-9.80665);
     double w2(params.comPosition_[2]/g); // w2 < 0
